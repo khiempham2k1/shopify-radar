@@ -253,7 +253,7 @@ Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.m
 | Chấm điểm, lịch chạy, `radar doctor` | `radar/scoring.py`, `radar/scheduler.py`, `radar/doctor.py` | Test; `radar doctor` chạy thật |
 | API | `api/main.py` | Test; chạy thật trên Postgres |
 | Dashboard (8 màn hình, đăng nhập Google) | `web/` | `npm run build`, lint, typecheck; chạy thử với dữ liệu mẫu ở desktop, mobile và dark mode |
-| Docker Compose | `docker-compose.yml`, `docker/Dockerfile`, `web/Dockerfile` | Chưa build trọn được trong môi trường phát triển vì bị chặn mạng tới kho gói |
+| Docker Compose | `docker-compose.yml`, `docker/Dockerfile`, `web/Dockerfile` | Đã build cả hai image và chạy đủ 4 container (postgres, api, worker, web): migration, các trang web, proxy, `radar doctor`, một lượt `radar run`. Môi trường phát triển chặn kho gói Debian và GitHub, nên bản build thử thay `apt install ffmpeg` bằng ffmpeg tĩnh và lấy `rdt-cli` 0.4.1 từ PyPI; Dockerfile trong repo giữ nguyên |
 
 53 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
 
