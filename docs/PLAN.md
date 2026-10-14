@@ -106,7 +106,9 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
 
   | Nguồn | Cách lấy |
   |---|---|
-  | Shopify dev changelog, Shopify news, Google Alerts | RSS |
+  | Shopify dev changelog (shopify.dev/changelog), Shopify news, Google Alerts | RSS |
+  | [Shopify Changelog](https://changelog.shopify.com/): thay đổi sản phẩm phía merchant | RSS nếu có, nếu không thì thu thập trang công khai |
+  | [Shopify Editions](https://www.shopify.com/editions): các đợt ra mắt lớn mỗi mùa | Thu thập trang công khai mỗi ngày; phát hiện Edition mới, tách từng tính năng thành item riêng để AI phân loại |
   | Shopify CLI, theme mẫu, Polaris | GitHub releases |
   | r/shopify, r/shopifydev, r/ecommerce (subreddit và tìm kiếm) | Reddit API (OAuth) |
   | Shopify Community | Trang công khai hoặc RSS nếu có |
@@ -132,7 +134,7 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
 - [ ] Đăng nhập Google, giới hạn trong domain công ty.
 - [ ] Màn hình:
   - **Tổng quan:** chỉ số tuần (số item mới theo chủ đề, cảm xúc, thay đổi nền tảng còn hạn) và danh sách "Cần xử lý".
-  - **Thay đổi nền tảng:** timeline, nhãn mức ảnh hưởng, đếm ngược hạn chót, trạng thái (chưa xem / đang xử lý / xong).
+  - **Thay đổi nền tảng:** timeline gộp dev changelog, Shopify Changelog và Shopify Editions; lọc theo nguồn; nhãn mức ảnh hưởng, đếm ngược hạn chót, trạng thái (chưa xem / đang xử lý / xong). Mỗi Edition có trang tóm tắt riêng, liệt kê các tính năng liên quan tới theme/app.
   - **Feed:** gộp các nguồn, có bộ lọc và tìm kiếm toàn văn, nhãn AI, gắn cờ "không liên quan".
   - **Sức khỏe nguồn:** lần chạy gần nhất, lỗi, số item.
 - [ ] Triển khai Docker lên VPS, cron chạy mỗi 1–3 giờ.
