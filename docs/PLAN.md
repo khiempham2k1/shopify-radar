@@ -30,7 +30,7 @@ collectors/ (cron)  ──▶  Postgres  ◀── ai/ (pipeline 2 bước, ti�
                      api/ (FastAPI) ──▶ web/ (Next.js dashboard)
 ```
 
-**Stack đề xuất:** Python (FastAPI, worker theo lịch) · Postgres · LiteLLM (đa nhà cung cấp, có model dự phòng) · Groq Whisper (chuyển giọng nói trong video thành văn bản) · Next.js · Docker Compose.
+**Stack đề xuất:** Python (FastAPI, worker theo lịch) · Postgres · LiteLLM (đa nhà cung cấp, có model dự phòng) · Groq Whisper (chuyển giọng nói trong video thành văn bản) · các công cụ thu thập miễn phí do [Agent Reach](https://github.com/Panniantong/agent-reach) chọn (xem mục bên dưới) · Next.js · Docker Compose.
 
 ### Cấu trúc repo dự kiến
 
@@ -38,7 +38,7 @@ collectors/ (cron)  ──▶  Postgres  ◀── ai/ (pipeline 2 bước, ti�
 shopify-radar/
 ├── config/        sources.yaml, keywords.txt, interests.txt, prompts/
 ├── radar/
-│   ├── collectors/   rss, github, reddit, community, youtube, search, hackernews
+│   ├── collectors/   rss, github, reddit, twitter, community, youtube, search, web_reader, hackernews
 │   ├── filter/       keyword DSL (theo cú pháp TrendRadar)
 │   ├── ai/           client (LiteLLM), tag_extractor, classifier, insights
 │   ├── transcribe/   tải audio YouTube, gọi Groq Whisper, lưu transcript, tóm tắt
@@ -74,11 +74,33 @@ shopify-radar/
 
 TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết lại, không copy code.
 
+### Dùng Agent Reach để thu thập miễn phí
+
+[Agent Reach](https://github.com/Panniantong/agent-reach) (license MIT) không phải thư viện thu thập dữ liệu. Nó là một lớp **chọn, cài và kiểm tra sức khỏe** các công cụ mã nguồn mở miễn phí cho từng nền tảng, kèm danh sách công cụ dự phòng khi công cụ chính bị nền tảng chặn. Việc đọc và tìm kiếm thật do các công cụ gốc đó làm. Shopify Radar dùng nó theo ba cách:
+
+1. **Dùng lại lựa chọn công cụ** cho các collector, thay cho API trả phí hoặc API cần xin duyệt:
+
+   | Nhu cầu | Công cụ (miễn phí) | Thay cho |
+   |---|---|---|
+   | Tìm kiếm web | Exa qua MCP (`mcporter call exa.web_search_exa`), không cần API key | Brave Search / Serper |
+   | Đọc toàn văn một trang (kết quả search, blog, Community) | Jina Reader (`https://r.jina.ai/URL`) | Tự viết parser HTML |
+   | Tìm video YouTube và lấy phụ đề | `yt-dlp` (`ytsearchN:query`, `--write-auto-sub`) | YouTube Data API |
+   | Reddit | `rdt-cli` với cookie của một tài khoản riêng; dự phòng bằng Exa `site:reddit.com` | Reddit API (từ 11/2025 không còn tự đăng ký được, phải xin duyệt) |
+   | X/Twitter | `twitter-cli` với cookie của một tài khoản riêng | X API trả phí |
+   | RSS, GitHub | `feedparser`, `gh` CLI | (giữ nguyên) |
+
+2. **Dùng lại code** (MIT nên được phép): module `agent_reach/transcribe.py` đã làm sẵn việc tải audio, nén, chia đoạn 10 phút và gọi Groq Whisper. Hàm `WebChannel.read()` đã có xử lý trang chống bot của Jina Reader.
+3. **Học cách kiểm tra sức khỏe** của `agent-reach doctor`: mỗi nguồn có danh sách công cụ theo thứ tự ưu tiên, chạy thử thật (không chỉ kiểm tra lệnh có tồn tại) để chọn công cụ đang dùng được, và đưa ra hướng dẫn sửa khi lỗi. Trang Sức khỏe nguồn hiển thị công cụ nào đang được dùng cho từng nguồn.
+
+Cài từ GitHub, không cài từ PyPI: gói cùng tên trên PyPI không phải dự án này. Ghim version các công cụ gốc và cập nhật có kiểm soát, vì các công cụ dựa trên cookie hay bị nền tảng chặn rồi phải đổi.
+
+Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Facebook, Instagram qua OpenCLI), vì không chạy được trên server.
+
 ## 3. Lộ trình (khoảng 5–5.5 tuần)
 
 | Giai đoạn | Thời gian | Kết quả chính |
 |---|---|---|
-| **0. Chuẩn bị** | 3–5 ngày | Viết file chủ đề quan tâm và từ khóa, lấy API key, dựng khung repo và Docker |
+| **0. Chuẩn bị** | 3–5 ngày | Viết file chủ đề quan tâm và từ khóa, chuẩn bị tài khoản và công cụ, dựng khung repo và Docker |
 | **1. Lõi: nền tảng, social, web** | 3–3.5 tuần | Pipeline thu thập → lọc → AI → DB; dashboard Tổng quan, Thay đổi nền tảng, Feed, Sức khỏe nguồn |
 | **2. AI Insights** | 1–1.5 tuần | Báo cáo tuần, trang Cài đặt |
 
@@ -88,7 +110,11 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
 - [ ] Viết bộ từ khóa ban đầu (`config/keywords.txt`):
   - Nhu cầu merchant: "best shopify theme for …", "looking for a shopify theme", "theme doesn't support", "switch theme from …".
   - Kỹ thuật: "Online Store 2.0", "theme app extension", "checkout extensibility", "Shopify Editions", "theme store requirements".
-- [ ] Đăng ký các tài khoản: Reddit API, YouTube Data API, Groq API (Whisper), search API (Brave hoặc Serper), một nhà cung cấp LLM.
+- [ ] Chuẩn bị tài khoản và key (đều miễn phí):
+  - Groq API key (Whisper; gói miễn phí có giới hạn tần suất).
+  - Một tài khoản Reddit và một tài khoản X **riêng cho radar**, không dùng tài khoản chính, để lấy cookie cho `rdt-cli` và `twitter-cli`.
+  - Nhà cung cấp LLM cho phân loại và tóm tắt.
+- [ ] Cài công cụ trong image Docker của worker: `agent-reach` (từ GitHub), `yt-dlp` kèm Node.js hoặc Deno (YouTube cần JS runtime), `ffmpeg`, `mcporter` với Exa MCP, `rdt-cli`, `twitter-cli`, `gh`. Chạy `agent-reach doctor` để xác nhận từng nguồn hoạt động.
 - [ ] Dựng khung repo và Docker Compose gồm `postgres`, `worker`, `api`, `web`.
 - [ ] Chọn nơi chạy: VPS hoặc server nội bộ.
 
@@ -112,10 +138,11 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
   | [Shopify Changelog](https://changelog.shopify.com/): thay đổi sản phẩm phía merchant | RSS nếu có, nếu không thì thu thập trang công khai |
   | [Shopify Editions](https://www.shopify.com/editions): các đợt ra mắt lớn mỗi mùa | Thu thập trang công khai mỗi ngày; phát hiện Edition mới, tách từng tính năng thành item riêng để AI phân loại |
   | Shopify CLI, theme mẫu, Polaris | GitHub releases |
-  | r/shopify, r/shopifydev, r/ecommerce (subreddit và tìm kiếm) | Reddit API (OAuth) |
-  | Shopify Community | Trang công khai hoặc RSS nếu có |
-  | YouTube (review và hướng dẫn về theme/app) | YouTube Data API để tìm video; video liên quan được nghe nội dung bằng Groq (xem bên dưới) |
-  | Web search theo bộ truy vấn | Brave Search hoặc Serper |
+  | r/shopify, r/shopifydev, r/ecommerce (subreddit và tìm kiếm) | `rdt-cli` (cookie tài khoản riêng); dự phòng Exa `site:reddit.com` |
+  | X/Twitter (tìm theo bộ truy vấn) | `twitter-cli` (cookie tài khoản riêng) |
+  | Shopify Community | RSS nếu có, nếu không thì đọc trang qua Jina Reader |
+  | YouTube (review và hướng dẫn về theme/app) | `yt-dlp` để tìm video (`ytsearchN:query`) và lấy metadata; nội dung video lấy từ phụ đề hoặc Groq (xem bên dưới) |
+  | Web search theo bộ truy vấn | Exa qua MCP (miễn phí, không cần key); đọc toàn văn kết quả qua Jina Reader |
   | Hacker News | Algolia API |
 
 - [ ] Mỗi collector có: thử lại khi lỗi, khoảng nghỉ ngẫu nhiên giữa các request, kiểm tra domain, ghi `source_status`.
@@ -124,9 +151,10 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
   - Từ file chủ đề quan tâm, AI sinh danh sách tag. Ví dụ: "Thay đổi nền tảng: Checkout", "Yêu cầu Theme Store", "Nhu cầu merchant: tốc độ".
   - Phân loại theo lô, AI trả `{id, tag, score, sentiment, impact, deadline}`.
   - Bỏ qua item đã phân tích; khi file chủ đề đổi thì so hash để quyết định phân loại lại; AI lỗi thì quay về lọc từ khóa.
-- [ ] Nghe nội dung video YouTube bằng Groq:
+- [ ] Lấy nội dung video YouTube (phụ đề trước, Groq sau):
   - Chỉ xử lý video đã qua lọc sơ bộ (tiêu đề và mô tả qua từ khóa và AI, điểm ≥ ngưỡng) và không dài quá giới hạn trong config (ví dụ 60 phút), để kiểm soát chi phí.
-  - Tải audio (ví dụ bằng `yt-dlp`), nén về mono 16 kHz bitrate thấp; chia thành nhiều đoạn nếu vượt giới hạn kích thước file của Groq.
+  - **Thử phụ đề trước** bằng `yt-dlp --write-sub --write-auto-sub --skip-download`. Video có phụ đề thì dùng luôn, không tốn quota Groq.
+  - Video không có phụ đề: tải audio, nén về mono 16 kHz bitrate thấp, chia đoạn 10 phút. Dùng lại `agent_reach/transcribe.py` cho phần này.
   - Gọi Groq `whisper-large-v3-turbo`, lấy transcript kèm mốc thời gian. Truyền danh sách thuật ngữ Shopify (Liquid, metafield, checkout extensibility…) qua tham số `prompt` để nhận diện đúng từ chuyên ngành.
   - Lưu vào `item_transcripts`, xóa file audio sau khi xong.
   - LLM tóm tắt transcript: một đoạn tóm tắt tiếng Việt và 3–5 ý chính kèm mốc thời gian. **Cập nhật nội dung item** bằng bản tóm tắt này, rồi chạy lại phân loại AI dựa trên nội dung video thay vì chỉ tiêu đề.
@@ -145,7 +173,7 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
   - **Tổng quan:** chỉ số tuần (số item mới theo chủ đề, cảm xúc, thay đổi nền tảng còn hạn) và danh sách "Cần xử lý".
   - **Thay đổi nền tảng:** timeline gộp dev changelog, Shopify Changelog và Shopify Editions; lọc theo nguồn; nhãn mức ảnh hưởng, đếm ngược hạn chót, trạng thái (chưa xem / đang xử lý / xong). Mỗi Edition có trang tóm tắt riêng, liệt kê các tính năng liên quan tới theme/app.
   - **Feed:** gộp các nguồn, có bộ lọc và tìm kiếm toàn văn (tìm được cả trong transcript video), nhãn AI, gắn cờ "không liên quan". Video YouTube hiển thị tóm tắt từ nội dung video, các ý chính kèm mốc thời gian (bấm để mở video đúng đoạn đó) và nhãn "Đã nghe nội dung" hoặc "Đang xử lý".
-  - **Sức khỏe nguồn:** lần chạy gần nhất, lỗi, số item. Thêm dòng cho hàng đợi Groq: số video đã xử lý, số phút audio, số video lỗi.
+  - **Sức khỏe nguồn:** lần chạy gần nhất, lỗi, số item, và **công cụ đang dùng** cho từng nguồn (theo cách `agent-reach doctor` chọn công cụ). Cảnh báo khi cookie Reddit hoặc X sắp hết hạn. Thêm dòng cho hàng đợi video: số video lấy từ phụ đề, số video qua Groq, số phút audio, số video lỗi.
 - [ ] Triển khai Docker lên VPS, cron chạy mỗi 1–3 giờ.
 
 **Tiêu chí hoàn thành:**
@@ -158,7 +186,6 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
 - [ ] Báo cáo tuần tự động, lưu lại để xem lịch sử: cơ hội, rủi ro, việc cần làm.
 - [ ] Trang Cài đặt: sửa từ khóa, nguồn, chủ đề quan tâm. Chuyển cấu hình từ file vào DB.
 - [ ] Theo dõi chi phí token.
-- [ ] Tùy chọn: thêm X/Twitter nếu có ngân sách.
 
 ## 4. Nguồn lực và chi phí ước tính
 
@@ -168,22 +195,25 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
 | Hạng mục | Chi phí ước tính |
 |---|---|
 | VPS | $20–40 |
-| LLM | $10–50 |
-| Groq Whisper (`whisper-large-v3-turbo`, khoảng $0.04/giờ audio) | Khoảng $1–5 (ví dụ 100 video × 15 phút/tháng ≈ 25 giờ ≈ $1) |
-| Search API | $0–50 |
-| Reddit, YouTube | Miễn phí trong hạn mức |
-| X/Twitter | Đắt, để sau |
+| LLM | $10–50 (hoặc $0 nếu dùng gói miễn phí của Groq cho phân loại, chấp nhận giới hạn tần suất) |
+| Groq Whisper | $0 trong gói miễn phí; vượt thì khoảng $0.04/giờ audio. Video có phụ đề không tốn gì |
+| Web search (Exa MCP), Jina Reader | $0 |
+| Reddit, X, YouTube (qua `rdt-cli`, `twitter-cli`, `yt-dlp`) | $0 |
+| Proxy nếu IP server bị chặn | Khoảng $1/tháng theo Agent Reach; không cần nếu chạy trên server nội bộ |
 
 ## 5. Rủi ro
 
 | Rủi ro | Cách giảm |
 |---|---|
 | Shopify Community đổi cấu trúc HTML hoặc chặn truy cập | Tần suất thấp, cache, cảnh báo trên trang Sức khỏe nguồn, parser dễ sửa |
-| Điều khoản API (Reddit, scraping) | Đọc kỹ điều khoản, chỉ dùng nội bộ, không phát lại dữ liệu ra ngoài |
+| Điều khoản sử dụng (Reddit, X, YouTube, scraping) | Chỉ dùng nội bộ, không phát lại dữ liệu ra ngoài |
 | Dữ liệu social nhiều nhiễu | Lọc từ khóa thô trước, AI sau, ngưỡng `min_score`, gắn cờ "không liên quan" để tinh chỉnh |
 | Chi phí token tăng | Không phân tích lại item cũ, cắt nội dung, giới hạn số item mỗi lần phân tích |
 | Không ai dùng dashboard | Danh sách "Cần xử lý" có người phụ trách; báo cáo tuần là đầu vào cho họp sản phẩm |
-| Facebook Groups, LinkedIn, TikTok không có API phù hợp | Không đưa vào phạm vi |
+| Facebook Groups, LinkedIn, TikTok không có API phù hợp | Không đưa vào phạm vi (OpenCLI cần Chrome desktop, không chạy được trên server) |
+| Tài khoản Reddit/X dùng cookie bị khóa | Dùng tài khoản riêng cho radar, tần suất thấp; cảnh báo trên trang Sức khỏe nguồn; Reddit có dự phòng qua Exa |
+| Công cụ miễn phí bị nền tảng chặn hoặc ngừng phát triển | Mỗi nguồn có danh sách công cụ dự phòng như Agent Reach; ghim version; theo dõi bản cập nhật của Agent Reach để đổi công cụ |
+| Exa MCP và Jina Reader miễn phí có giới hạn tần suất, không có cam kết dịch vụ | Chạy theo lô với khoảng nghỉ, cache kết quả; nếu bị giới hạn thường xuyên thì cân nhắc gói trả phí |
 | Tải audio YouTube bằng công cụ bên thứ ba có thể trái điều khoản YouTube, và IP server dễ bị YouTube chặn | Đã chấp nhận vì dự án chỉ dùng nội bộ. Vẫn chỉ xử lý video đã lọc, tần suất thấp, xóa audio sau khi xử lý, theo dõi tỉ lệ lỗi trên trang Sức khỏe nguồn |
 | Video dài hoặc file audio vượt giới hạn của Groq | Giới hạn độ dài trong config, nén audio, chia đoạn rồi ghép transcript |
 | Transcript sai thuật ngữ chuyên ngành | Truyền danh sách thuật ngữ qua tham số `prompt` của Whisper; tóm tắt bằng LLM để giảm ảnh hưởng của lỗi nhỏ |
