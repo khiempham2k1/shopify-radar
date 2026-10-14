@@ -12,6 +12,7 @@ Dashboard nội bộ phục vụ team phát triển **theme (Shopify Theme Store
 - Theme Store radar: snapshot đối thủ, theme mới, review. Có thể thêm sau mà không cần đổi kiến trúc.
 - Thông báo qua Slack hoặc các kênh khác. Đầu ra duy nhất là dashboard.
 - Theo dõi thương hiệu (tên theme/app/công ty của mình và đối thủ). Radar theo chủ đề, không theo thương hiệu.
+- MCP server và chat hỏi đáp trên dữ liệu.
 
 ## 2. Kiến trúc
 
@@ -25,7 +26,7 @@ collectors/ (cron)  ──▶  Postgres  ◀── ai/ (pipeline 2 bước, ti�
  community, youtube,       ai_tags, ai_results, ai_analyzed, item_status
  search, hackernews
                                 │
-                     api/ (FastAPI) + mcp/ ──▶ web/ (Next.js dashboard)
+                     api/ (FastAPI) ──▶ web/ (Next.js dashboard)
 ```
 
 **Stack đề xuất:** Python (FastAPI, worker theo lịch) · Postgres · LiteLLM (đa nhà cung cấp, có model dự phòng) · Next.js · Docker Compose.
@@ -43,7 +44,6 @@ shopify-radar/
 │   ├── storage/      models, migrations
 │   └── jobs/         scheduler, các lệnh doctor/status
 ├── api/           FastAPI
-├── mcp/           tool hỏi đáp
 ├── web/           Next.js dashboard
 └── docker/
 ```
@@ -61,7 +61,6 @@ shopify-radar/
 | Không phân tích lại item cũ, so hash để phân loại lại, AI lỗi thì quay về keyword, dùng `json-repair` | Áp dụng nguyên |
 | Điểm có trọng số: thứ hạng, tần suất, độ nóng | Liên quan (AI), tương tác, số nguồn cùng nhắc, độ mới |
 | LiteLLM + `fallback_models`, giới hạn `max_news_for_analysis` | Model rẻ để phân loại, model mạnh cho báo cáo tuần |
-| MCP tools (`search_news`, `analyze_topic_trend`, `compare_periods`, `read_article`) | Nền cho chat hỏi đáp trên dashboard |
 
 **Không học theo:**
 - Module thông báo.
@@ -73,13 +72,13 @@ shopify-radar/
 
 TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết lại, không copy code.
 
-## 3. Lộ trình (khoảng 5–6 tuần)
+## 3. Lộ trình (khoảng 4.5–5 tuần)
 
 | Giai đoạn | Thời gian | Kết quả chính |
 |---|---|---|
 | **0. Chuẩn bị** | 3–5 ngày | Viết file chủ đề quan tâm và từ khóa, lấy API key, dựng khung repo và Docker |
 | **1. Lõi: nền tảng, social, web** | 2.5–3 tuần | Pipeline thu thập → lọc → AI → DB; dashboard Tổng quan, Thay đổi nền tảng, Feed, Sức khỏe nguồn |
-| **2. AI Insights** | 2 tuần | Báo cáo tuần, chat hỏi đáp, trang Cài đặt |
+| **2. AI Insights** | 1–1.5 tuần | Báo cáo tuần, trang Cài đặt |
 
 ### Giai đoạn 0: Chuẩn bị (3–5 ngày)
 
@@ -144,17 +143,16 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
 - Ít nhất 80% trong top 20 item của Feed là thông tin có ích.
 - Team mở dashboard hằng ngày.
 
-### Giai đoạn 2: AI Insights (2 tuần)
+### Giai đoạn 2: AI Insights (1–1.5 tuần)
 
 - [ ] Báo cáo tuần tự động, lưu lại để xem lịch sử: cơ hội, rủi ro, việc cần làm.
-- [ ] Chat hỏi đáp trên dữ liệu với các tool `search_items`, `topic_trend`, `compare_periods`, `read_item`.
 - [ ] Trang Cài đặt: sửa từ khóa, nguồn, chủ đề quan tâm. Chuyển cấu hình từ file vào DB.
 - [ ] Theo dõi chi phí token.
 - [ ] Tùy chọn: thêm X/Twitter nếu có ngân sách.
 
 ## 4. Nguồn lực và chi phí ước tính
 
-- **Nhân sự:** 1 dev backend/data (Python) và 1 dev frontend (Next.js), cộng PM bán thời gian. Hoặc 1 fullstack trong khoảng 8–9 tuần.
+- **Nhân sự:** 1 dev backend/data (Python) và 1 dev frontend (Next.js), cộng PM bán thời gian. Hoặc 1 fullstack trong khoảng 7–8 tuần.
 - **Chi phí hằng tháng** (ước tính sơ bộ, cần kiểm tra lại giá):
 
 | Hạng mục | Chi phí ước tính |
