@@ -1,5 +1,7 @@
 # Shopify Radar — Kế hoạch triển khai
 
+**Trạng thái:** đã chốt ngày 14/10/2026. Các quyết định nằm ở mục 6.
+
 ## 1. Mục tiêu
 
 Dashboard nội bộ phục vụ team phát triển **theme (Shopify Theme Store)** và **app (Shopify App)**, giúp:
@@ -30,7 +32,7 @@ collectors/ (cron)  ──▶  Postgres  ◀── ai/ (pipeline 2 bước, ti�
                      api/ (FastAPI) ──▶ web/ (Next.js dashboard)
 ```
 
-**Stack đề xuất:** Python (FastAPI, worker theo lịch) · Postgres · LiteLLM (đa nhà cung cấp, có model dự phòng) · Groq Whisper (chuyển giọng nói trong video thành văn bản) · các công cụ thu thập miễn phí do [Agent Reach](https://github.com/Panniantong/agent-reach) chọn (xem mục bên dưới) · Next.js · Docker Compose.
+**Stack (đã chốt):** Python (FastAPI, worker theo lịch) · Postgres · Claude qua Anthropic Python SDK (phân loại, tóm tắt, báo cáo tuần) · Groq Whisper (chỉ dùng để chuyển giọng nói trong video thành văn bản) · các công cụ thu thập miễn phí do [Agent Reach](https://github.com/Panniantong/agent-reach) chọn (xem mục bên dưới) · Next.js · Docker Compose.
 
 ### Cấu trúc repo dự kiến
 
@@ -40,7 +42,7 @@ shopify-radar/
 ├── radar/
 │   ├── collectors/   rss, github, reddit, twitter, community, youtube, search, web_reader, hackernews
 │   ├── filter/       keyword DSL (theo cú pháp TrendRadar)
-│   ├── ai/           client (LiteLLM), tag_extractor, classifier, insights
+│   ├── ai/           client (Anthropic SDK), tag_extractor, classifier, summarizer, insights
 │   ├── transcribe/   tải audio YouTube, gọi Groq Whisper, lưu transcript, tóm tắt
 │   ├── scoring/      công thức điểm có trọng số
 │   ├── storage/      models, migrations
@@ -60,9 +62,9 @@ shopify-radar/
 | Item duy nhất theo `(url, nguồn)`, có `first/last_crawl_time`, `crawl_count`, `rank_history`, `crawl_source_status` | `items`, `item_metrics_history`, `crawl_runs`, `source_status` (trang Sức khỏe nguồn) |
 | Chế độ `incremental` / `current` / `daily` | Bộ lọc dashboard: Mới / Đang nổi / Hôm nay / Tuần này |
 | AI filter 2 bước: sở thích → tag (lưu `version`, `prompt_hash`) → phân loại theo lô, trả JSON | `interests.txt` → tag; phân loại trả thêm `sentiment`, `impact`, `deadline` |
-| Không phân tích lại item cũ, so hash để phân loại lại, AI lỗi thì quay về keyword, dùng `json-repair` | Áp dụng nguyên |
+| Không phân tích lại item cũ, so hash để phân loại lại, AI lỗi thì quay về keyword, dùng `json-repair` | Áp dụng nguyên; thay `json-repair` bằng structured outputs của Claude (JSON đúng schema) |
 | Điểm có trọng số: thứ hạng, tần suất, độ nóng | Liên quan (AI), tương tác, số nguồn cùng nhắc, độ mới |
-| LiteLLM + `fallback_models`, giới hạn `max_news_for_analysis` | Model rẻ để phân loại, model mạnh cho báo cáo tuần |
+| LiteLLM + `fallback_models`, giới hạn `max_news_for_analysis` | Một nhà cung cấp (Claude) nên dùng thẳng Anthropic SDK; chỉnh mức `effort` theo từng tác vụ; giới hạn số item mỗi lần phân tích |
 
 **Không học theo:**
 - Module thông báo.
@@ -113,10 +115,10 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 - [ ] Chuẩn bị tài khoản và key (đều miễn phí):
   - Groq API key (Whisper; gói miễn phí có giới hạn tần suất).
   - Một tài khoản Reddit và một tài khoản X **riêng cho radar**, không dùng tài khoản chính, để lấy cookie cho `rdt-cli` và `twitter-cli`.
-  - Nhà cung cấp LLM cho phân loại và tóm tắt.
+  - Anthropic API key (Claude) cho phân loại, tóm tắt và báo cáo tuần.
 - [ ] Cài công cụ trong image Docker của worker: `agent-reach` (từ GitHub), `yt-dlp` kèm Node.js hoặc Deno (YouTube cần JS runtime), `ffmpeg`, `mcporter` với Exa MCP, `rdt-cli`, `twitter-cli`, `gh`. Chạy `agent-reach doctor` để xác nhận từng nguồn hoạt động.
 - [ ] Dựng khung repo và Docker Compose gồm `postgres`, `worker`, `api`, `web`.
-- [ ] Chọn nơi chạy: VPS hoặc server nội bộ.
+- [ ] Chuẩn bị server nội bộ chạy Docker (đã chốt chạy nội bộ). Kiểm tra server truy cập được Reddit, X, YouTube, Exa, Jina, Groq và Anthropic API.
 
 ### Giai đoạn 1: Lõi — nền tảng, social, web (3–3.5 tuần)
 
@@ -151,13 +153,19 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
   - Từ file chủ đề quan tâm, AI sinh danh sách tag. Ví dụ: "Thay đổi nền tảng: Checkout", "Yêu cầu Theme Store", "Nhu cầu merchant: tốc độ".
   - Phân loại theo lô, AI trả `{id, tag, score, sentiment, impact, deadline}`.
   - Bỏ qua item đã phân tích; khi file chủ đề đổi thì so hash để quyết định phân loại lại; AI lỗi thì quay về lọc từ khóa.
+- [ ] Dùng Claude (`claude-opus-5-5`, Anthropic Python SDK):
+  - Phân loại theo lô (khoảng 50 item mỗi lần gọi) với `effort: low`; tóm tắt transcript video với `effort: medium`; báo cáo tuần với `effort: high`.
+  - Structured outputs (`output_config.format`) để luôn nhận JSON đúng schema.
+  - Prompt caching cho phần cố định (system prompt, danh sách tag, nội dung `interests.txt`) để giảm chi phí input.
+  - Phân loại không cần ngay lập tức có thể gửi qua Message Batches API để giảm 50% chi phí, đổi lại kết quả có thể về chậm hơn.
+  - Kiểm tra `stop_reason` trước khi đọc kết quả (bao gồm trường hợp `refusal`), thử lại khi gặp lỗi 429 hoặc 5xx.
 - [ ] Lấy nội dung video YouTube (phụ đề trước, Groq sau):
   - Chỉ xử lý video đã qua lọc sơ bộ (tiêu đề và mô tả qua từ khóa và AI, điểm ≥ ngưỡng) và không dài quá giới hạn trong config (ví dụ 60 phút), để kiểm soát chi phí.
   - **Thử phụ đề trước** bằng `yt-dlp --write-sub --write-auto-sub --skip-download`. Video có phụ đề thì dùng luôn, không tốn quota Groq.
   - Video không có phụ đề: tải audio, nén về mono 16 kHz bitrate thấp, chia đoạn 10 phút. Dùng lại `agent_reach/transcribe.py` cho phần này.
   - Gọi Groq `whisper-large-v3-turbo`, lấy transcript kèm mốc thời gian. Truyền danh sách thuật ngữ Shopify (Liquid, metafield, checkout extensibility…) qua tham số `prompt` để nhận diện đúng từ chuyên ngành.
   - Lưu vào `item_transcripts`, xóa file audio sau khi xong.
-  - LLM tóm tắt transcript: một đoạn tóm tắt tiếng Việt và 3–5 ý chính kèm mốc thời gian. **Cập nhật nội dung item** bằng bản tóm tắt này, rồi chạy lại phân loại AI dựa trên nội dung video thay vì chỉ tiêu đề.
+  - Claude tóm tắt transcript: một đoạn tóm tắt tiếng Việt và 3–5 ý chính kèm mốc thời gian. **Cập nhật nội dung item** bằng bản tóm tắt này, rồi chạy lại phân loại AI dựa trên nội dung video thay vì chỉ tiêu đề.
   - Chạy như một hàng đợi riêng sau collector, mỗi video có trạng thái chờ / đang xử lý / xong / lỗi, có thử lại. Không xử lý lại video đã có transcript.
 - [ ] Chấm điểm: `liên quan (AI) × w1 + tương tác × w2 + số nguồn cùng nhắc × w3 + độ mới × w4`. Trọng số đặt trong config.
 
@@ -174,7 +182,7 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
   - **Thay đổi nền tảng:** timeline gộp dev changelog, Shopify Changelog và Shopify Editions; lọc theo nguồn; nhãn mức ảnh hưởng, đếm ngược hạn chót, trạng thái (chưa xem / đang xử lý / xong). Mỗi Edition có trang tóm tắt riêng, liệt kê các tính năng liên quan tới theme/app.
   - **Feed:** gộp các nguồn, có bộ lọc và tìm kiếm toàn văn (tìm được cả trong transcript video), nhãn AI, gắn cờ "không liên quan". Video YouTube hiển thị tóm tắt từ nội dung video, các ý chính kèm mốc thời gian (bấm để mở video đúng đoạn đó) và nhãn "Đã nghe nội dung" hoặc "Đang xử lý".
   - **Sức khỏe nguồn:** lần chạy gần nhất, lỗi, số item, và **công cụ đang dùng** cho từng nguồn (theo cách `agent-reach doctor` chọn công cụ). Cảnh báo khi cookie Reddit hoặc X sắp hết hạn. Thêm dòng cho hàng đợi video: số video lấy từ phụ đề, số video qua Groq, số phút audio, số video lỗi.
-- [ ] Triển khai Docker lên VPS, cron chạy mỗi 1–3 giờ.
+- [ ] Triển khai Docker Compose lên server nội bộ, cron chạy mỗi 1–3 giờ.
 
 **Tiêu chí hoàn thành:**
 - Thay đổi nền tảng được phát hiện trong vòng 24 giờ.
@@ -185,7 +193,7 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 
 - [ ] Báo cáo tuần tự động, lưu lại để xem lịch sử: cơ hội, rủi ro, việc cần làm.
 - [ ] Trang Cài đặt: sửa từ khóa, nguồn, chủ đề quan tâm. Chuyển cấu hình từ file vào DB.
-- [ ] Theo dõi chi phí token.
+- [ ] Theo dõi chi phí token Claude (đọc `usage` của từng lần gọi, tổng hợp theo ngày và theo tác vụ).
 
 ## 4. Nguồn lực và chi phí ước tính
 
@@ -194,12 +202,12 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 
 | Hạng mục | Chi phí ước tính |
 |---|---|
-| VPS | $20–40 |
-| LLM | $10–50 (hoặc $0 nếu dùng gói miễn phí của Groq cho phân loại, chấp nhận giới hạn tần suất) |
+| Server | $0 (server nội bộ) |
+| Claude (`claude-opus-5-5`, $4/$20 mỗi triệu token input/output) | Khoảng $30–70: phân loại ~400–500 item/ngày là phần lớn; tóm tắt video và báo cáo tuần chỉ vài đô. Giảm được bằng prompt caching và Batch API (−50% cho phần gửi qua batch). Nếu cần rẻ hơn nữa, có thể dùng `claude-haiku-5-5` ($0.10/$0.50) riêng cho phân loại, sau khi đo chất lượng |
 | Groq Whisper | $0 trong gói miễn phí; vượt thì khoảng $0.04/giờ audio. Video có phụ đề không tốn gì |
 | Web search (Exa MCP), Jina Reader | $0 |
 | Reddit, X, YouTube (qua `rdt-cli`, `twitter-cli`, `yt-dlp`) | $0 |
-| Proxy nếu IP server bị chặn | Khoảng $1/tháng theo Agent Reach; không cần nếu chạy trên server nội bộ |
+| Proxy | Thường không cần vì chạy trên server nội bộ; nếu IP văn phòng bị chặn thì khoảng $1/tháng theo Agent Reach |
 
 ## 5. Rủi ro
 
@@ -209,7 +217,7 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 | Điều khoản sử dụng (Reddit, X, YouTube, scraping) | Chỉ dùng nội bộ, không phát lại dữ liệu ra ngoài |
 | Dữ liệu social nhiều nhiễu | Lọc từ khóa thô trước, AI sau, ngưỡng `min_score`, gắn cờ "không liên quan" để tinh chỉnh |
 | Chi phí token tăng | Không phân tích lại item cũ, cắt nội dung, giới hạn số item mỗi lần phân tích |
-| Không ai dùng dashboard | Danh sách "Cần xử lý" có người phụ trách; báo cáo tuần là đầu vào cho họp sản phẩm |
+| Không ai dùng dashboard | Tech lead chịu trách nhiệm xem danh sách "Cần xử lý" hằng ngày và giao việc; báo cáo tuần là đầu vào cho họp sản phẩm |
 | Facebook Groups, LinkedIn, TikTok không có API phù hợp | Không đưa vào phạm vi (OpenCLI cần Chrome desktop, không chạy được trên server) |
 | Tài khoản Reddit/X dùng cookie bị khóa | Dùng tài khoản riêng cho radar, tần suất thấp; cảnh báo trên trang Sức khỏe nguồn; Reddit có dự phòng qua Exa |
 | Công cụ miễn phí bị nền tảng chặn hoặc ngừng phát triển | Mỗi nguồn có danh sách công cụ dự phòng như Agent Reach; ghim version; theo dõi bản cập nhật của Agent Reach để đổi công cụ |
@@ -218,9 +226,14 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 | Video dài hoặc file audio vượt giới hạn của Groq | Giới hạn độ dài trong config, nén audio, chia đoạn rồi ghép transcript |
 | Transcript sai thuật ngữ chuyên ngành | Truyền danh sách thuật ngữ qua tham số `prompt` của Whisper; tóm tắt bằng LLM để giảm ảnh hưởng của lỗi nhỏ |
 
-## 6. Cần chốt trước khi bắt đầu
+## 6. Quyết định đã chốt
 
-1. Stack: Python (FastAPI) và Next.js (đề xuất), hay toàn bộ TypeScript.
-2. Nhà cung cấp LLM và ngân sách hằng tháng.
-3. Nơi chạy: VPS hay server nội bộ.
-4. Người phụ trách chính, tức người đọc và xử lý danh sách "Cần xử lý".
+| Hạng mục | Quyết định |
+|---|---|
+| Stack | Python (FastAPI, worker) + Next.js (dashboard) + Postgres, chạy bằng Docker Compose |
+| AI | Claude (`claude-opus-5-5`) cho phân loại, tóm tắt và báo cáo tuần; Groq chỉ dùng cho speech-to-text |
+| Thu thập dữ liệu | Công cụ miễn phí theo Agent Reach (Exa MCP, Jina Reader, `yt-dlp`, `rdt-cli`, `twitter-cli`, `feedparser`, `gh`) |
+| Nơi chạy | Server nội bộ |
+| Phạm vi sử dụng | Chỉ nội bộ; đã chấp nhận rủi ro điều khoản khi tải audio YouTube và dùng cookie Reddit/X |
+| Người phụ trách | Tech lead xem danh sách "Cần xử lý" hằng ngày và giao việc |
+| Ngoài phạm vi | App Store, Theme Store, thông báo Slack, theo dõi thương hiệu, MCP/chat hỏi đáp |
