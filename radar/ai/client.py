@@ -104,6 +104,9 @@ class ClaudeClient:
             raise AIError(f"Lỗi Anthropic API {exc.status_code}: {exc.message}") from exc
         except anthropic.APIConnectionError as exc:
             raise AIError(f"Không kết nối được Anthropic API: {exc}") from exc
+        except TypeError as exc:
+            # The SDK raises TypeError at request time when no credentials are configured.
+            raise AIError(f"Chưa cấu hình Anthropic API (ANTHROPIC_API_KEY): {exc}") from exc
         self.record_usage(spec.task, message, batch=False)
         return parse_json_message(message)
 

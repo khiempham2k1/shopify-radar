@@ -108,23 +108,23 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 
 ### Giai đoạn 0: Chuẩn bị (3–5 ngày)
 
-- [ ] Viết **file chủ đề quan tâm** (`config/interests.txt`), mô tả bằng ngôn ngữ tự nhiên như `ai_interests.txt` của TrendRadar. Ví dụ: thay đổi API và deprecation, yêu cầu Theme Store, checkout extensibility, hiệu năng theme, nhu cầu và phàn nàn của merchant về theme/app.
-- [ ] Viết bộ từ khóa ban đầu (`config/keywords.txt`):
+- [x] Viết **file chủ đề quan tâm** (`config/interests.txt`), mô tả bằng ngôn ngữ tự nhiên như `ai_interests.txt` của TrendRadar. Ví dụ: thay đổi API và deprecation, yêu cầu Theme Store, checkout extensibility, hiệu năng theme, nhu cầu và phàn nàn của merchant về theme/app.
+- [x] Viết bộ từ khóa ban đầu (`config/keywords.txt`):
   - Nhu cầu merchant: "best shopify theme for …", "looking for a shopify theme", "theme doesn't support", "switch theme from …".
   - Kỹ thuật: "Online Store 2.0", "theme app extension", "checkout extensibility", "Shopify Editions", "theme store requirements".
-- [ ] Chuẩn bị tài khoản và key (đều miễn phí):
+- [ ] **(Team làm)** Chuẩn bị tài khoản và key (đều miễn phí), điền vào `.env`:
   - Groq API key (Whisper; gói miễn phí có giới hạn tần suất).
   - Một tài khoản Reddit và một tài khoản X **riêng cho radar**, không dùng tài khoản chính, để lấy cookie cho `rdt-cli` và `twitter-cli`.
   - Anthropic API key (Claude) cho phân loại, tóm tắt và báo cáo tuần.
-- [ ] Cài công cụ trong image Docker của worker: `agent-reach` (từ GitHub), `yt-dlp` kèm Node.js hoặc Deno (YouTube cần JS runtime), `ffmpeg`, `mcporter` với Exa MCP, `rdt-cli`, `twitter-cli`, `gh`. Chạy `agent-reach doctor` để xác nhận từng nguồn hoạt động.
-- [ ] Dựng khung repo và Docker Compose gồm `postgres`, `worker`, `api`, `web`.
-- [ ] Chuẩn bị server nội bộ chạy Docker (đã chốt chạy nội bộ). Kiểm tra server truy cập được Reddit, X, YouTube, Exa, Jina, Groq và Anthropic API.
+- [x] Cài công cụ trong image Docker (`docker/Dockerfile`): `agent-reach` (từ GitHub), `yt-dlp` kèm Deno (YouTube cần JS runtime), `ffmpeg`, `rdt-cli`, `twitter-cli`. Exa MCP được gọi bằng MCP client của Python nên không cần `mcporter`; GitHub releases đọc qua Atom feed nên không cần `gh`. Kiểm tra bằng `radar doctor --network` (cách làm giống `agent-reach doctor`).
+- [x] Dựng khung repo và Docker Compose gồm `postgres`, `worker`, `api`, `web`.
+- [ ] **(Team làm)** Chuẩn bị server nội bộ chạy Docker (đã chốt chạy nội bộ). Kiểm tra server truy cập được Reddit, X, YouTube, Exa, Jina, Groq và Anthropic API.
 
 ### Giai đoạn 1: Lõi — nền tảng, social, web (3–3.5 tuần)
 
 **Backend (khoảng 2 tuần)**
 
-- [ ] Schema Postgres:
+- [x] Schema Postgres:
   - `sources`
   - `items`: duy nhất theo `url` + nguồn; có `first_seen`, `last_seen`, `seen_count`
   - `item_metrics_history`: upvote, comment, view theo thời gian
@@ -132,7 +132,7 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
   - `ai_tags` (kèm `version`, `prompt_hash`), `ai_results`, `ai_analyzed`
   - `item_status`: trạng thái, người phụ trách
   - `item_transcripts`: transcript video (văn bản, các đoạn có mốc thời gian, ngôn ngữ, thời lượng, model, trạng thái xử lý)
-- [ ] Collectors:
+- [x] Collectors:
 
   | Nguồn | Cách lấy |
   |---|---|
@@ -147,31 +147,31 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
   | Web search theo bộ truy vấn | Exa qua MCP (miễn phí, không cần key); đọc toàn văn kết quả qua Jina Reader |
   | Hacker News | Algolia API |
 
-- [ ] Mỗi collector có: thử lại khi lỗi, khoảng nghỉ ngẫu nhiên giữa các request, kiểm tra domain, ghi `source_status`.
-- [ ] Bộ lọc từ khóa: nhóm, regex, `+` bắt buộc, `!` loại trừ, danh sách loại trừ toàn cục.
-- [ ] AI pipeline 2 bước:
+- [x] Mỗi collector có: thử lại khi lỗi, khoảng nghỉ ngẫu nhiên giữa các request, kiểm tra domain, ghi `source_status`.
+- [x] Bộ lọc từ khóa: nhóm, regex, `+` bắt buộc, `!` loại trừ, danh sách loại trừ toàn cục.
+- [x] AI pipeline 2 bước:
   - Từ file chủ đề quan tâm, AI sinh danh sách tag. Ví dụ: "Thay đổi nền tảng: Checkout", "Yêu cầu Theme Store", "Nhu cầu merchant: tốc độ".
   - Phân loại theo lô, AI trả `{id, tag, score, sentiment, impact, deadline}`.
   - Bỏ qua item đã phân tích; khi file chủ đề đổi thì so hash để quyết định phân loại lại; AI lỗi thì quay về lọc từ khóa.
-- [ ] Dùng Claude (`claude-opus-5-5`, Anthropic Python SDK):
+- [x] Dùng Claude (`claude-opus-5-5`, Anthropic Python SDK):
   - Phân loại theo lô (khoảng 50 item mỗi lần gọi) với `effort: low`; tóm tắt transcript video với `effort: medium`; báo cáo tuần với `effort: high`.
   - Structured outputs (`output_config.format`) để luôn nhận JSON đúng schema.
   - Prompt caching cho phần cố định (system prompt, danh sách tag, nội dung `interests.txt`) để giảm chi phí input.
   - Phân loại không cần ngay lập tức có thể gửi qua Message Batches API để giảm 50% chi phí, đổi lại kết quả có thể về chậm hơn.
   - Kiểm tra `stop_reason` trước khi đọc kết quả (bao gồm trường hợp `refusal`), thử lại khi gặp lỗi 429 hoặc 5xx.
-- [ ] Lấy nội dung video YouTube (phụ đề trước, Groq sau):
+- [x] Lấy nội dung video YouTube (phụ đề trước, Groq sau):
   - Chỉ xử lý video đã qua lọc sơ bộ (tiêu đề và mô tả qua từ khóa và AI, điểm ≥ ngưỡng) và không dài quá giới hạn trong config (ví dụ 60 phút), để kiểm soát chi phí.
   - **Thử phụ đề trước** bằng `yt-dlp --write-sub --write-auto-sub --skip-download`. Video có phụ đề thì dùng luôn, không tốn quota Groq.
-  - Video không có phụ đề: tải audio, nén về mono 16 kHz bitrate thấp, chia đoạn 10 phút. Dùng lại `agent_reach/transcribe.py` cho phần này.
+  - Video không có phụ đề: tải audio, nén về mono 16 kHz bitrate thấp, chia đoạn 10 phút, theo đúng cách của `agent_reach/transcribe.py`. Viết lại trong `radar/transcribe/media.py` thay vì import, vì cần Groq trả `verbose_json` để giữ mốc thời gian (hàm của Agent Reach chỉ trả văn bản).
   - Gọi Groq `whisper-large-v3-turbo`, lấy transcript kèm mốc thời gian. Truyền danh sách thuật ngữ Shopify (Liquid, metafield, checkout extensibility…) qua tham số `prompt` để nhận diện đúng từ chuyên ngành.
   - Lưu vào `item_transcripts`, xóa file audio sau khi xong.
   - Claude tóm tắt transcript: một đoạn tóm tắt tiếng Việt và 3–5 ý chính kèm mốc thời gian. **Cập nhật nội dung item** bằng bản tóm tắt này, rồi chạy lại phân loại AI dựa trên nội dung video thay vì chỉ tiêu đề.
   - Chạy như một hàng đợi riêng sau collector, mỗi video có trạng thái chờ / đang xử lý / xong / lỗi, có thử lại. Không xử lý lại video đã có transcript.
-- [ ] Chấm điểm: `liên quan (AI) × w1 + tương tác × w2 + số nguồn cùng nhắc × w3 + độ mới × w4`. Trọng số đặt trong config.
+- [x] Chấm điểm: `liên quan (AI) × w1 + tương tác × w2 + số nguồn cùng nhắc × w3 + độ mới × w4`. Trọng số đặt trong config.
 
 **API và dashboard (khoảng 1–1.5 tuần)**
 
-- [ ] API:
+- [x] API:
   - Danh sách item, lọc theo nguồn, tag, cảm xúc, thời gian, chế độ Mới / Đang nổi / Hôm nay.
   - Cập nhật trạng thái và người phụ trách.
   - Thống kê tổng quan.
@@ -182,7 +182,7 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
   - **Thay đổi nền tảng:** timeline gộp dev changelog, Shopify Changelog và Shopify Editions; lọc theo nguồn; nhãn mức ảnh hưởng, đếm ngược hạn chót, trạng thái (chưa xem / đang xử lý / xong). Mỗi Edition có trang tóm tắt riêng, liệt kê các tính năng liên quan tới theme/app.
   - **Feed:** gộp các nguồn, có bộ lọc và tìm kiếm toàn văn (tìm được cả trong transcript video), nhãn AI, gắn cờ "không liên quan". Video YouTube hiển thị tóm tắt từ nội dung video, các ý chính kèm mốc thời gian (bấm để mở video đúng đoạn đó) và nhãn "Đã nghe nội dung" hoặc "Đang xử lý".
   - **Sức khỏe nguồn:** lần chạy gần nhất, lỗi, số item, và **công cụ đang dùng** cho từng nguồn (theo cách `agent-reach doctor` chọn công cụ). Cảnh báo khi cookie Reddit hoặc X sắp hết hạn. Thêm dòng cho hàng đợi video: số video lấy từ phụ đề, số video qua Groq, số phút audio, số video lỗi.
-- [ ] Triển khai Docker Compose lên server nội bộ, cron chạy mỗi 1–3 giờ.
+- [ ] **(Team làm)** Triển khai Docker Compose lên server nội bộ (`docker compose up -d --build`); lịch chạy mặc định mỗi 2 giờ.
 
 **Tiêu chí hoàn thành:**
 - Thay đổi nền tảng được phát hiện trong vòng 24 giờ.

@@ -224,3 +224,10 @@ def test_login_check_warns_on_old_cookie(tmp_path, monkeypatch):
     assert check_login("rdt-cli (Reddit)", ["rdt", "status", "--json"], "x").status == "ok"
     _fake_cli(tmp_path, "rdt", {"ok": False, "error": {"code": "not_authenticated"}}, monkeypatch)
     assert check_login("rdt-cli (Reddit)", ["rdt", "status", "--json"], "x").status == "warn"
+
+
+def test_youtube_search_target():
+    from radar.collectors.social import youtube_search_target
+
+    assert youtube_search_target("shopify theme", 5) == "https://www.youtube.com/results?search_query=shopify+theme&sp=CAI%253D"
+    assert youtube_search_target("shopify theme", 5, "relevance") == "ytsearch5:shopify theme"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote_plus
 
 from radar.collectors import exa
 from radar.collectors.base import (
@@ -134,6 +135,14 @@ def video_entry_to_item(entry: dict[str, Any]) -> CollectedItem | None:
     )
 
 
+def youtube_search_target(query: str, limit: int, mode: str = "date") -> str:
+    """Newest-first uses the results page sorted by upload date (sp=CAI%3D);
+    yt-dlp no longer accepts a `ytsearchdate` prefix."""
+    if mode == "date":
+        return f"https://www.youtube.com/results?search_query={quote_plus(query)}&sp=CAI%253D"
+    return f"ytsearch{limit}:{query}"
+
+
 class YouTubeCollector(Collector):
     type = "youtube"
     default_backends = ["yt-dlp"]
@@ -141,15 +150,14 @@ class YouTubeCollector(Collector):
     def fetch_yt_dlp(self) -> list[CollectedItem]:
         import yt_dlp
 
-        prefix = "ytsearchdate" if self.source.get("search_mode", "date") == "date" else "ytsearch"
-        options = {"quiet": True, "no_warnings": True, "js_runtimes": {"deno": {}, "node": {}}, "skip_download": True, "extract_flat": "in_playlist"}
+        options = {"quiet": True, "no_warnings": True, "js_runtimes": {"deno": {}, "node": {}}, "skip_download": True, "extract_flat": "in_playlist", "playlistend": self.limit}
         items: list[CollectedItem] = []
         try:
             with yt_dlp.YoutubeDL(options) as ydl:
                 for query in self.source.get("queries", []):
-                    info = ydl.extract_info(f"{prefix}{self.limit}:{query}", download=False) or {}
+                    info = ydl.extract_info(youtube_search_target(query, self.limit, self.source.get("search_mode", "date")), download=False) or {}
                     items.extend(i for i in (video_entry_to_item(e) for e in info.get("entries") or [] if e) if i)
                     self.http.pause(1.0)
-        except yt_dlp.utils.DownloadError as exc:
-            raise CollectError(f"yt-dlp: {exc}") from exc
+        except (yt_dlp.utils.DownloadError, yt_dlp.networking.exceptions.RequestError) as exc:
+            raise CollectError(str(exc)) from exc
         return items
