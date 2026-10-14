@@ -184,7 +184,7 @@ TrendRadar theo license GPL-3.0, nên chỉ học kiến trúc và tự viết l
 | Chi phí token tăng | Không phân tích lại item cũ, cắt nội dung, giới hạn số item mỗi lần phân tích |
 | Không ai dùng dashboard | Danh sách "Cần xử lý" có người phụ trách; báo cáo tuần là đầu vào cho họp sản phẩm |
 | Facebook Groups, LinkedIn, TikTok không có API phù hợp | Không đưa vào phạm vi |
-| Tải audio YouTube bằng công cụ bên thứ ba có thể trái điều khoản YouTube, và IP server dễ bị YouTube chặn | Chỉ dùng nội bộ, chỉ xử lý video đã lọc, tần suất thấp, xóa audio sau khi xử lý; cân nhắc rủi ro pháp lý trước khi bật; theo dõi tỉ lệ lỗi trên trang Sức khỏe nguồn |
+| Tải audio YouTube bằng công cụ bên thứ ba có thể trái điều khoản YouTube, và IP server dễ bị YouTube chặn | Đã chấp nhận vì dự án chỉ dùng nội bộ. Vẫn chỉ xử lý video đã lọc, tần suất thấp, xóa audio sau khi xử lý, theo dõi tỉ lệ lỗi trên trang Sức khỏe nguồn |
 | Video dài hoặc file audio vượt giới hạn của Groq | Giới hạn độ dài trong config, nén audio, chia đoạn rồi ghép transcript |
 | Transcript sai thuật ngữ chuyên ngành | Truyền danh sách thuật ngữ qua tham số `prompt` của Whisper; tóm tắt bằng LLM để giảm ảnh hưởng của lỗi nhỏ |
 
