@@ -26,14 +26,17 @@ export function BarChart({
   ariaLabel,
   format = (v) => String(v),
   integer = true,
+  width = 640,
 }: {
   rows: BarRow[];
   series: BarSeries[];
   ariaLabel: string;
   format?: (v: number) => string;
   integer?: boolean;
+  /** viewBox width; match it roughly to the rendered width so labels stay ~11px. */
+  width?: number;
 }) {
-  const W = 640;
+  const W = width;
   const H = 230;
   const L = 44;
   const R = 8;

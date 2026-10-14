@@ -1,6 +1,6 @@
 # Shopify Radar — Kế hoạch triển khai
 
-**Trạng thái:** đã chốt ngày 14/10/2026. Các quyết định nằm ở mục 6.
+**Trạng thái:** đã chốt ngày 14/10/2026 (mục 6). Code của Giai đoạn 0, 1 và 2 đã xong; còn các bước team cần làm để chạy thật (mục 7).
 
 ## 1. Mục tiêu
 
@@ -176,8 +176,8 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
   - Cập nhật trạng thái và người phụ trách.
   - Thống kê tổng quan.
   - Sức khỏe nguồn.
-- [ ] Đăng nhập Google, giới hạn trong domain công ty.
-- [ ] Màn hình:
+- [x] Đăng nhập Google, giới hạn trong domain công ty.
+- [x] Màn hình:
   - **Tổng quan:** chỉ số tuần (số item mới theo chủ đề, cảm xúc, thay đổi nền tảng còn hạn) và danh sách "Cần xử lý".
   - **Thay đổi nền tảng:** timeline gộp dev changelog, Shopify Changelog và Shopify Editions; lọc theo nguồn; nhãn mức ảnh hưởng, đếm ngược hạn chót, trạng thái (chưa xem / đang xử lý / xong). Mỗi Edition có trang tóm tắt riêng, liệt kê các tính năng liên quan tới theme/app.
   - **Feed:** gộp các nguồn, có bộ lọc và tìm kiếm toàn văn (tìm được cả trong transcript video), nhãn AI, gắn cờ "không liên quan". Video YouTube hiển thị tóm tắt từ nội dung video, các ý chính kèm mốc thời gian (bấm để mở video đúng đoạn đó) và nhãn "Đã nghe nội dung" hoặc "Đang xử lý".
@@ -191,9 +191,9 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 
 ### Giai đoạn 2: AI Insights (1–1.5 tuần)
 
-- [ ] Báo cáo tuần tự động, lưu lại để xem lịch sử: cơ hội, rủi ro, việc cần làm.
-- [ ] Trang Cài đặt: sửa từ khóa, nguồn, chủ đề quan tâm. Chuyển cấu hình từ file vào DB.
-- [ ] Theo dõi chi phí token Claude (đọc `usage` của từng lần gọi, tổng hợp theo ngày và theo tác vụ).
+- [x] Báo cáo tuần tự động, lưu lại để xem lịch sử: cơ hội, rủi ro, việc cần làm.
+- [x] Trang Cài đặt: sửa từ khóa, nguồn, chủ đề quan tâm. Chuyển cấu hình từ file vào DB.
+- [x] Theo dõi chi phí token Claude (đọc `usage` của từng lần gọi, tổng hợp theo ngày và theo tác vụ).
 
 ## 4. Nguồn lực và chi phí ước tính
 
@@ -237,3 +237,37 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 | Phạm vi sử dụng | Chỉ nội bộ; đã chấp nhận rủi ro điều khoản khi tải audio YouTube và dùng cookie Reddit/X |
 | Người phụ trách | Tech lead xem danh sách "Cần xử lý" hằng ngày và giao việc |
 | Ngoài phạm vi | App Store, Theme Store, thông báo Slack, theo dõi thương hiệu, MCP/chat hỏi đáp |
+
+## 7. Trạng thái triển khai (15/10/2026)
+
+Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.md`](../README.md).
+
+| Phần | Ở đâu | Đã kiểm tra |
+|---|---|---|
+| Cấu hình, prompt | `config/` | Test đọc `keywords.txt` thật |
+| Schema DB + migration | `radar/models.py`, `migrations/` | Migration chạy trên Postgres 16 |
+| Collectors (11 nguồn, có công cụ dự phòng) | `radar/collectors/` | Test với dữ liệu mẫu; CLI `rdt` và `twitter` được gọi đúng cờ |
+| Lọc từ khóa (cú pháp TrendRadar) | `radar/filter/keywords.py` | Test |
+| Claude: tag, phân loại, tóm tắt video, báo cáo tuần, Batch API | `radar/ai/` | Test với client Claude giả |
+| Video: phụ đề → Groq Whisper | `radar/transcribe/` | Test với dữ liệu mẫu |
+| Chấm điểm, lịch chạy, `radar doctor` | `radar/scoring.py`, `radar/scheduler.py`, `radar/doctor.py` | Test; `radar doctor` chạy thật |
+| API | `api/main.py` | Test; chạy thật trên Postgres |
+| Dashboard (8 màn hình, đăng nhập Google) | `web/` | `npm run build`, lint, typecheck; chạy thử với dữ liệu mẫu ở desktop, mobile và dark mode |
+| Docker Compose | `docker-compose.yml`, `docker/Dockerfile`, `web/Dockerfile` | Chưa build trọn được trong môi trường phát triển vì bị chặn mạng tới kho gói |
+
+53 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
+
+**Chưa kiểm tra được với dữ liệu thật:** môi trường phát triển bị chặn mạng tới Shopify, Reddit, X, YouTube, Exa, Jina, Hacker News và Groq, và không có Anthropic API key. Lần chạy đầu trên server nội bộ cần xem kỹ trang Sức khỏe nguồn. Riêng Shopify Changelog, Shopify Editions và Shopify Community, cách tách nội dung trang có thể cần chỉnh theo HTML thật (`link_pattern`, cách tách heading).
+
+**Team cần làm để chạy thật:**
+1. Điền `.env`: `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `RADAR_API_TOKEN`, Google OAuth, `ALLOWED_EMAIL_DOMAINS`, `NEXTAUTH_URL`, cookie X; chép `credential.json` của `rdt-cli` vào `secrets/rdt-cli/`.
+2. Dán URL RSS của Google Alerts vào `config/sources.yaml` (nguồn `google-alerts`).
+3. `docker compose up -d --build` trên server nội bộ, rồi chạy `docker compose exec worker radar doctor --network` và `radar run`.
+4. Sau 1–2 tuần, đánh giá theo tiêu chí hoàn thành (mục 3) và chỉnh `keywords.txt`, `interests.txt` trên trang Cài đặt.
+
+**Khác với plan ban đầu:**
+- Exa MCP được gọi bằng MCP client của Python, không cần `mcporter` (Node).
+- GitHub releases đọc qua Atom feed, không cần `gh`.
+- Phần tải và chia audio viết lại theo cách của `agent_reach/transcribe.py` thay vì import, vì cần mốc thời gian từ Groq.
+- Nguồn YouTube đặt `keyword_filter: false`: tiêu đề video ít thông tin nên mọi video được gửi cho Claude chấm sơ bộ.
+- Trang Chi phí AI tách thành màn hình riêng.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useApi } from "@/lib/api";
-import { fmtDateTime, fmtNumber, KIND, timeAgo } from "@/lib/format";
+import { fmtDateTime, fmtNumber, fmtShortDateTime, KIND, timeAgo } from "@/lib/format";
 import type { HealthResponse, SourceHealth } from "@/lib/types";
 import { Empty, ErrorBox, Loading } from "../States";
 
@@ -131,8 +131,8 @@ export function HealthView() {
                         <td>
                           <Backends s={s} />
                         </td>
-                        <td className="mono" title={s.last_run ? timeAgo(s.last_run) : undefined}>
-                          {s.last_run ? fmtDateTime(s.last_run) : "–"}
+                        <td className="mono" style={{ whiteSpace: "nowrap" }} title={s.last_run ? `${fmtDateTime(s.last_run)} · ${timeAgo(s.last_run)}` : undefined}>
+                          {s.last_run ? fmtShortDateTime(s.last_run) : "–"}
                           {s.last_run && s.duration_ms > 0 && <div className="err-msg">{(s.duration_ms / 1000).toFixed(1)} giây</div>}
                         </td>
                         <td style={{ whiteSpace: "nowrap" }}>

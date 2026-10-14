@@ -69,7 +69,7 @@ export function UsageView() {
               <Empty>Chưa có chi phí nào trong {data.days} ngày qua.</Empty>
             ) : (
               <div className="chart-wrap">
-                <BarChart rows={rows} series={SERIES} integer={false} format={(v) => fmtUsd(v)} ariaLabel={`Biểu đồ cột chi phí Claude theo ngày, ${data.days} ngày gần nhất`} />
+                <BarChart rows={rows} series={SERIES} integer={false} width={960} format={(v) => fmtUsd(v)} ariaLabel={`Biểu đồ cột chi phí Claude theo ngày, ${data.days} ngày gần nhất`} />
               </div>
             )}
           </div>

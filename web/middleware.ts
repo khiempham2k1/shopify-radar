@@ -19,7 +19,12 @@ export async function middleware(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ detail: "Chưa đăng nhập hoặc phiên đã hết hạn" }, { status: 401 });
   }
-  const login = new URL("/login", req.url);
+  // Behind a reverse proxy req.url carries the internal host (e.g. localhost:3000), so build the
+  // redirect from the public URL: NEXTAUTH_URL, else the forwarded/Host headers.
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  const proto = req.headers.get("x-forwarded-proto") || req.nextUrl.protocol.replace(/:$/, "");
+  const base = process.env.NEXTAUTH_URL || (host ? `${proto}://${host}` : req.url);
+  const login = new URL("/login", base);
   login.searchParams.set("callbackUrl", req.nextUrl.pathname + req.nextUrl.search);
   return NextResponse.redirect(login);
 }
