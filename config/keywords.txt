@@ -1,0 +1,55 @@
+# Shopify Radar — từ khóa (cú pháp theo TrendRadar)
+#   [GLOBAL_FILTER]  từ bị loại ở mọi nơi
+#   [Tên nhóm]       mở một nhóm; dòng trống kết thúc nhóm
+#   từ               khớp nếu có từ này (các từ trong nhóm là "hoặc")
+#   /regex/          biểu thức chính quy, không phân biệt hoa thường
+#   từ => tên        tên hiển thị cho từ
+#   +từ              bắt buộc phải có
+#   !từ              loại item khỏi nhóm này
+#   @20              hiển thị tối đa 20 item cho nhóm
+# File trống = không lọc, mọi item đều chuyển sang AI.
+
+[GLOBAL_FILTER]
+/\bhiring\b/
+/\bfor sale\b/
+/\bjob (opening|offer)\b/
+
+[Nhu cầu merchant]
+best shopify theme
+looking for a shopify theme
+looking for a theme
+theme doesn't support
+theme does not support
+/switch(ing)? (my )?theme/
+/recommend(ation)?s? .*theme/
+
+[Theme Store & theme]
+theme store
+/\btheme (editor|app extension|check|kit)\b/
+online store 2.0
+/\bliquid\b/
+section rendering
+/\bmetafields?\b/
+
+[Checkout & app]
+checkout extensibility
+/checkout\.liquid/
+thank you page
+/\bcheckout (ui )?extensions?\b/
+/\bapp blocks?\b/
+/\bshopify (cli|functions|polaris|app bridge)\b/
+
+[API & deprecation]
+/\b(admin|storefront) api\b/
+/\bdeprecat(e|ed|ion)\b/
+/\bapi version\b/
+/\b20[0-9]{2}-(01|04|07|10)\b/
+
+[Hiệu năng]
+/\b(lighthouse|core web vitals|page speed|pagespeed)\b/
+/\bslow (theme|store|editor)\b/
++shopify
+
+[Editions]
+/\bshopify editions?\b/
+/\b(summer|winter) '?\d{2} edition\b/

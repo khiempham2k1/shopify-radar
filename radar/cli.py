@@ -1,0 +1,141 @@
+"""Command line: `radar <command>`.
+
+    radar migrate            apply database migrations (Alembic)
+    radar run [--source ID]  one full run: collect, classify, videos, score
+    radar collect            collect only
+    radar classify           classify pending items only
+    radar videos             process the video queue only
+    radar score              recompute scores
+    radar report             write last week's report now
+    radar doctor [--network] check tools, logins and keys
+    radar scheduler          run forever on the cron in sources.yaml
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sys
+from dataclasses import asdict, is_dataclass
+
+from radar.db import session_scope
+from radar.settings import ROOT
+
+
+def _print(obj) -> None:
+    if is_dataclass(obj):
+        obj = asdict(obj)
+    print(json.dumps(obj, ensure_ascii=False, indent=2, default=str))
+
+
+def cmd_migrate(_: argparse.Namespace) -> None:
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(str(ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(ROOT / "migrations"))
+    command.upgrade(cfg, "head")
+
+
+def cmd_run(args: argparse.Namespace) -> None:
+    from radar.pipeline import run_once
+
+    with session_scope() as session:
+        _print(run_once(session, only=args.source or None))
+
+
+def cmd_collect(args: argparse.Namespace) -> None:
+    from radar.config_loader import load_config
+    from radar.ingest import collect_all
+
+    with session_scope() as session:
+        run = collect_all(session, load_config(session), only=args.source or None)
+        _print({"crawl_run": run.id, "new": run.items_new, "seen": run.items_seen})
+
+
+def cmd_classify(_: argparse.Namespace) -> None:
+    from radar.ai.classifier import classify
+    from radar.config_loader import load_config
+    from radar.pipeline import make_claude
+
+    with session_scope() as session:
+        config = load_config(session)
+        _print(classify(session, config, make_claude(session, config)))
+
+
+def cmd_videos(_: argparse.Namespace) -> None:
+    from radar.config_loader import load_config
+    from radar.pipeline import make_claude
+    from radar.transcribe.queue import process_videos
+
+    with session_scope() as session:
+        config = load_config(session)
+        _print(process_videos(session, config, make_claude(session, config)))
+
+
+def cmd_score(_: argparse.Namespace) -> None:
+    from radar.config_loader import load_config
+    from radar.scoring import rescore
+
+    with session_scope() as session:
+        _print({"scored": rescore(session, load_config(session))})
+
+
+def cmd_report(_: argparse.Namespace) -> None:
+    from radar.pipeline import weekly_report
+
+    with session_scope() as session:
+        report = weekly_report(session)
+        _print({"report": report.id, "period": [report.period_start, report.period_end], "items": report.items_considered})
+
+
+def cmd_doctor(args: argparse.Namespace) -> None:
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from radar.config_loader import load_config
+    from radar.doctor import run_doctor
+
+    try:
+        with session_scope() as session:
+            config = load_config(session)
+    except SQLAlchemyError:
+        print("⚠️  Chưa kết nối được DB hoặc chưa migrate: dùng cấu hình trong config/")
+        config = load_config(None)
+    checks = run_doctor(config, network=args.network)
+    icons = {"ok": "✅", "warn": "⚠️ ", "error": "❌", "off": "⏸ "}
+    for check in checks:
+        print(f"{icons.get(check.status, '?')} {check.name}: {check.message}")
+    if any(c.status == "error" for c in checks):
+        sys.exit(1)
+
+
+def cmd_scheduler(_: argparse.Namespace) -> None:
+    from radar.scheduler import run_scheduler
+
+    run_scheduler()
+
+
+def main(argv: list[str] | None = None) -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    parser = argparse.ArgumentParser(prog="radar", description="Shopify Radar worker")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("migrate").set_defaults(func=cmd_migrate)
+    for name, func in (("run", cmd_run), ("collect", cmd_collect)):
+        p = sub.add_parser(name)
+        p.add_argument("--source", action="append", help="chỉ chạy nguồn này (lặp lại được)")
+        p.set_defaults(func=func)
+    sub.add_parser("classify").set_defaults(func=cmd_classify)
+    sub.add_parser("videos").set_defaults(func=cmd_videos)
+    sub.add_parser("score").set_defaults(func=cmd_score)
+    sub.add_parser("report").set_defaults(func=cmd_report)
+    doctor = sub.add_parser("doctor")
+    doctor.add_argument("--network", action="store_true", help="kiểm tra cả kết nối tới Jina, Exa, Groq")
+    doctor.set_defaults(func=cmd_doctor)
+    sub.add_parser("scheduler").set_defaults(func=cmd_scheduler)
+    args = parser.parse_args(argv)
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

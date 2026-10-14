@@ -1,0 +1,13 @@
+Chúng tôi là công ty làm theme bán trên Shopify Theme Store và làm Shopify app.
+Radar cần tìm những tin sau, xếp theo thứ tự ưu tiên:
+
+1. Thay đổi nền tảng có hạn chót: API version mới, API hoặc tính năng bị ngừng hỗ trợ, thay đổi bắt buộc với theme hoặc app.
+2. Yêu cầu duyệt của Theme Store và tiêu chí hiệu năng (Lighthouse, Core Web Vitals), chính sách Partner.
+3. Checkout extensibility, checkout UI extensions, trang cảm ơn, app extension và app block.
+4. Theme editor, section, block, metafield, Liquid và các công cụ dev của Shopify (CLI, theme check).
+5. Hiệu năng theme và theme editor: tốc độ trang, editor chậm, số section lớn.
+6. Merchant cần tính năng gì mà theme hiện tại chưa có (bundles, quick add, mega menu, bộ lọc, nhiều SKU…).
+7. Lỗi tích hợp giữa app và theme (app block không hiển thị, xung đột script).
+8. Nội dung mới trong Shopify Editions liên quan tới theme hoặc app.
+
+Bỏ qua: tin tuyển dụng, quảng cáo dịch vụ, bài bán hàng, dropshipping chung chung không liên quan theme/app.

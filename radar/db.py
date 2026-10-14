@@ -1,0 +1,47 @@
+"""Database engine and session helpers."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from contextlib import contextmanager
+from functools import lru_cache
+from pathlib import Path
+
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from radar.settings import get_settings
+
+
+@lru_cache(maxsize=4)
+def get_engine(url: str | None = None) -> Engine:
+    url = url or get_settings().database_url
+    if url.startswith("sqlite:///"):
+        Path(url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
+        return create_engine(url, connect_args={"check_same_thread": False})
+    return create_engine(url, pool_pre_ping=True)
+
+
+def session_factory(url: str | None = None) -> sessionmaker[Session]:
+    return sessionmaker(bind=get_engine(url), expire_on_commit=False)
+
+
+@contextmanager
+def session_scope(url: str | None = None) -> Iterator[Session]:
+    session = session_factory(url)()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def init_db(url: str | None = None) -> None:
+    """Create tables directly (tests and local SQLite). Production uses Alembic."""
+    from radar.models import Base
+
+    Base.metadata.create_all(get_engine(url))

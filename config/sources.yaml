@@ -1,0 +1,147 @@
+# Shopify Radar — nguồn dữ liệu và tham số chạy
+# Giai đoạn 2: khi file này được sửa trên trang Cài đặt, bản trong DB sẽ thay cho file này.
+
+schedule:
+  # cron theo múi giờ RADAR_TIMEZONE (mặc định Asia/Ho_Chi_Minh)
+  collect: "7 */2 * * *"          # thu thập + phân loại + nghe video + chấm điểm, mỗi 2 giờ
+  weekly_report: "52 7 * * 1"     # báo cáo tuần, sáng thứ Hai
+  retention_days: 180             # xóa item cũ hơn số ngày này (0 = giữ mãi)
+
+ai:
+  model: claude-opus-5-5
+  classify_effort: low
+  summarize_effort: medium
+  report_effort: high
+  batch_size: 50                  # số item mỗi lần gọi Claude khi phân loại
+  max_items_per_run: 400          # trần số item gửi Claude mỗi lần chạy
+  content_chars: 500              # cắt nội dung mỗi item khi gửi phân loại
+  min_score: 0.5                  # điểm liên quan tối thiểu (0..1) để coi là khớp
+  reclassify_threshold: 0.6       # file chủ đề đổi nhiều hơn mức này thì phân loại lại toàn bộ
+  reclassify_days: 14             # khi phân loại lại toàn bộ, chỉ lấy item trong N ngày
+  use_batch_api: false            # true = gửi phân loại qua Message Batches API (rẻ hơn 50%, chậm hơn)
+  fallbacks: true                 # dùng server-side fallback khi Claude từ chối (không áp dụng cho Batch API)
+  report_max_items: 150
+  # Giá USD mỗi triệu token, dùng để tính chi phí trên trang Chi phí
+  pricing:
+    claude-opus-5-5: {input: 4.0, output: 20.0, cache_read: 0.2, cache_write: 5.0}
+    claude-sonnet-5-5: {input: 2.0, output: 10.0, cache_read: 0.2, cache_write: 2.5}
+    claude-haiku-5-5: {input: 0.1, output: 0.5, cache_read: 0.01, cache_write: 0.125}
+
+video:
+  min_score: 0.5                  # chỉ nghe video có điểm liên quan sơ bộ ≥ mức này
+  max_minutes: 60
+  max_per_run: 10
+  subtitle_langs: [en, en-US, vi]
+  groq_model: whisper-large-v3-turbo
+  chunk_seconds: 600
+
+scoring:
+  weights: {relevance: 0.5, engagement: 0.2, cross_source: 0.15, recency: 0.15}
+  recency_half_life_hours: 48
+  hot_threshold: 6.0              # điểm ≥ mức này và còn mới trong 48 giờ = "Đang nổi"
+  todo_threshold: 7.8             # thảo luận điểm ≥ mức này vào danh sách "Cần xử lý"
+
+sources:
+  # ── Nền tảng ────────────────────────────────────────────────
+  - id: shopify-dev-changelog
+    name: Shopify dev changelog
+    type: rss
+    kind: platform
+    urls: ["https://shopify.dev/changelog/feed.xml"]
+    expected_domain: shopify.dev
+    media_type: change
+
+  - id: shopify-changelog
+    name: Shopify Changelog
+    type: rss
+    kind: platform
+    urls: ["https://changelog.shopify.com/feed.xml", "https://changelog.shopify.com/rss"]
+    page_fallback: "https://changelog.shopify.com/"   # không có RSS thì đọc trang qua Jina Reader
+    expected_domain: shopify.com
+    media_type: change
+
+  - id: shopify-editions
+    name: Shopify Editions
+    type: editions
+    kind: platform
+    url: "https://www.shopify.com/editions"
+    media_type: change
+
+  - id: shopify-news
+    name: Shopify news
+    type: rss
+    kind: platform
+    urls: ["https://news.shopify.com/rss"]
+    media_type: article
+    enabled: false
+
+  - id: github-releases
+    name: GitHub releases
+    type: github_releases
+    kind: platform
+    repos: ["Shopify/cli", "Shopify/dawn", "Shopify/polaris", "Shopify/theme-tools"]
+    media_type: release
+
+  # ── Social ─────────────────────────────────────────────────
+  - id: reddit
+    name: Reddit
+    type: reddit
+    kind: social
+    backends: [rdt-cli, exa]      # thứ tự ưu tiên; rdt-cli cần cookie tài khoản riêng
+    subreddits: [shopify, shopifydev, ecommerce]
+    queries: ["shopify theme", "shopify app", "checkout extensibility"]
+    limit: 25
+
+  - id: twitter
+    name: X/Twitter
+    type: twitter
+    kind: social
+    backends: [twitter-cli]
+    queries: ["shopify theme", "shopify app developer", "\"checkout extensibility\""]
+    limit: 30
+
+  - id: shopify-community
+    name: Shopify Community
+    type: community
+    kind: social
+    backends: [rss, jina]
+    urls: ["https://community.shopify.com/latest.rss"]
+    page_url: "https://community.shopify.com/latest"
+    expected_domain: shopify.com
+
+  - id: youtube
+    name: YouTube
+    type: youtube
+    kind: social
+    backends: [yt-dlp]
+    keyword_filter: false         # tiêu đề video ít thông tin: gửi thẳng cho Claude chấm sơ bộ
+    queries: ["shopify theme review", "shopify theme development", "shopify checkout extensions"]
+    limit: 10
+
+  # ── Web ───────────────────────────────────────────────────
+  - id: web-search
+    name: Web search
+    type: web_search
+    kind: web
+    backends: [exa]
+    queries:
+      - "best shopify theme for"
+      - "shopify theme store requirements"
+      - "shopify theme performance problems"
+      - "Shopify Editions theme developers"
+    limit: 8
+    read_full: true               # đọc toàn văn kết quả qua Jina Reader
+
+  - id: google-alerts
+    name: Google Alerts
+    type: rss
+    kind: web
+    urls: []                      # dán URL RSS của Google Alerts vào đây
+    media_type: article
+
+  - id: hackernews
+    name: Hacker News
+    type: hackernews
+    kind: web
+    queries: ["shopify"]
+    limit: 20

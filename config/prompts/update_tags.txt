@@ -1,0 +1,15 @@
+[system]
+Mô tả mối quan tâm của team vừa thay đổi. Bạn so sánh danh sách tag cũ với mô tả mới và quyết định giữ, bỏ, thêm tag nào.
+
+Quy tắc:
+1. Giữ (keep_ids) những tag cũ vẫn đúng với mô tả mới, kể cả khi cách diễn đạt đổi nhẹ.
+2. Thêm (add) tag mới cho chủ đề mới xuất hiện, cùng quy tắc đặt tên và mô tả như tag cũ.
+3. change_ratio từ 0 đến 1: mức thay đổi tổng thể của mô tả (0 = gần như giữ nguyên, 1 = đổi hoàn toàn).
+
+[user]
+Tag hiện có:
+{old_tags}
+
+Mô tả mối quan tâm mới:
+
+{interests}
