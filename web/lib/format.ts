@@ -16,6 +16,7 @@ export const TASK: Record<string, string> = {
   summarize: "Tóm tắt video",
   report: "Báo cáo tuần",
   tags: "Tạo tag",
+  community: "Thảo luận cộng đồng",
 };
 
 const numberFmt = new Intl.NumberFormat("vi-VN");

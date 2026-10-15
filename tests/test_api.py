@@ -148,3 +148,29 @@ def test_official_items_lead_the_feed(client, db_url):
     assert feed[0]["id"] == coldest.id and feed[0]["official"] is True
     newest = client.get("/api/items", params={"view": "feed", "sort": "new"}).json()["items"]
     assert newest[0]["id"] != coldest.id or len(newest) == 1
+
+
+def test_community_page(client, db_url, fake_anthropic):
+    from radar.ai import community
+    from radar.ai.client import ClaudeClient
+    from radar.config_loader import load_config
+    from tests.test_community import seed_talk
+
+    session = session_factory(db_url)()
+    config = load_config(session)
+    seed_talk(session, config)
+    community.refresh(session, config, ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic), force=True)
+    session.commit()
+    session.close()
+
+    data = client.get("/api/community").json()
+    assert data["digest"]["overview"] and data["digest"]["topics"][0]["items"]
+    assert {i["place"] for i in data["digest"]["topics"][0]["items"]} <= {"Discord #general", "Discord #theme-dev", "Shopify Community"}
+    assert any(t["title"] == "Editor slow on Dawn" and t["summary"] for t in data["threads"])
+    assert {c["name"]: c["count"] for c in data["channels"]}["Discord #general"] == 5
+    assert data["digests"][0]["id"] == data["digest"]["id"]
+    # Community talk stays out of the Feed.
+    feed = client.get("/api/items", params={"view": "feed", "mode": "all"}).json()["items"]
+    assert not [i for i in feed if i["source"]["kind"] == "community"]
+    # Weekly reports list only weekly reports.
+    assert all(r.get("kind", "weekly") == "weekly" for r in client.get("/api/reports").json())

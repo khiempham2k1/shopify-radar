@@ -86,6 +86,18 @@ def default_responder(kwargs: dict[str, Any]):
                 ]
             }
         )
+    if "overview" in props:
+        ids = [int(i) for i in re.findall(r"^\[(\d+)\]", user, re.M)]
+        return make_message(
+            {
+                "overview": "Cộng đồng bàn nhiều về theme editor chậm.",
+                "topics": [{"title": "Theme editor chậm", "summary": "Nhiều người báo editor chậm.", "kind": "problem", "sources": ["Discord #general"], "item_ids": ids[:3] + [99999]}],
+                "open_questions": [{"text": "Có cách nào tăng tốc editor?", "item_ids": ids[:1]}],
+            }
+        )
+    if set(props) == {"items"}:
+        ids = [int(i) for i in re.findall(r"\[id=(\d+)\]", user)]
+        return make_message({"items": [{"id": i, "summary": f"Tóm tắt chủ đề {i}"} for i in ids]})
     if "points" in props:
         return make_message({"summary": "Video nói về tốc độ theme.", "points": [{"t": 65, "text": "Ý chính một"}, {"t": 130, "text": "Ý chính hai"}]})
     if "risks" in props:

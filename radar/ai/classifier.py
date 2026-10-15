@@ -96,6 +96,7 @@ def pending_items(session: Session, config: RadarConfig) -> list[Item]:
             Item.first_seen >= since,
             Item.id.not_in(analyzed),
             Item.id.not_in(dismissed),
+            Source.kind != "community",  # community talk is summed up in the digest, not scored item by item
             or_(Item.keyword_matched.is_(True), Source.kind == "platform", Item.id.in_(transcribed)),
         )
         .order_by(Item.official.desc(), Item.priority.is_(None), Item.first_seen.desc())

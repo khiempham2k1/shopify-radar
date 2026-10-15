@@ -82,6 +82,8 @@ def login_checks(config: RadarConfig) -> list[Check]:
         checks.append(check_login("rdt-cli (Reddit)", ["rdt", "status", "--json"], "Chạy `rdt login` hoặc chép credential.json mới của tài khoản radar"))
     if "twitter-cli" in backends:
         checks.append(check_login("twitter-cli (X)", ["twitter", "status", "--json"], "Cập nhật TWITTER_AUTH_TOKEN và TWITTER_CT0 của tài khoản radar"))
+    if "discord-cli" in backends:
+        checks.append(check_login("discord-cli (Discord)", ["discord", "status", "--json"], "Cập nhật DISCORD_TOKEN của tài khoản Discord riêng cho radar"))
     return checks
 
 

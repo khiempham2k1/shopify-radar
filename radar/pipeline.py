@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from radar.ai import community
 from radar.ai.classifier import ClassifyStats, classify
 from radar.ai.client import ClaudeClient
 from radar.ai.insights import build_report
@@ -31,6 +32,7 @@ class RunSummary:
     scored: int = 0
     pruned: int = 0
     stale_removed: int = 0
+    community: dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
 
 
@@ -64,6 +66,15 @@ def run_once(session: Session, only: list[str] | None = None, claude_client: Any
     except Exception as exc:  # noqa: BLE001 - scoring must still run on what we have
         log.exception("AI step failed")
         summary.errors.append(f"AI: {exc}")
+        session.rollback()
+
+    try:
+        # Discord / Shopify Community: Vietnamese thread summaries and the 24-hour digest.
+        summary.community = community.refresh(session, config, claude)
+        session.commit()
+    except Exception as exc:  # noqa: BLE001 - the digest must not stop scoring
+        log.exception("Community digest failed")
+        summary.errors.append(f"Cộng đồng: {exc}")
         session.rollback()
 
     summary.scored = rescore(session, config)

@@ -32,6 +32,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://radar:${POSTGRES_PASSWORD}@postgres:5432/radar
+      # discord-cli keeps its message store here, so each run only fetches new messages
+      XDG_DATA_HOME: /data/xdg
     volumes:
       - workdata:/data
       # Cookie của tài khoản Reddit riêng cho radar (credential.json của rdt-cli)

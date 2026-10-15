@@ -8,6 +8,7 @@
     radar score              recompute scores
     radar status             which database is used and how many items it holds
     radar report             write last week's report now
+    radar digest             sum up the last 24 h of community talk now (Discord, Shopify Community)
     radar doctor [--network] check tools, logins and keys
     radar scheduler          run forever on the cron in sources.yaml
 """
@@ -101,6 +102,16 @@ def cmd_report(_: argparse.Namespace) -> None:
         _print({"report": report.id, "period": [report.period_start, report.period_end], "items": report.items_considered})
 
 
+def cmd_digest(_: argparse.Namespace) -> None:
+    from radar.ai import community
+    from radar.config_loader import load_config
+    from radar.pipeline import make_claude
+
+    with session_scope() as session:
+        config = load_config(session)
+        _print(community.refresh(session, config, make_claude(session, config), force=True))
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     from sqlalchemy.exc import SQLAlchemyError
 
@@ -143,6 +154,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("score").set_defaults(func=cmd_score)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("report").set_defaults(func=cmd_report)
+    sub.add_parser("digest").set_defaults(func=cmd_digest)
     doctor = sub.add_parser("doctor")
     doctor.add_argument("--network", action="store_true", help="kiểm tra cả kết nối tới Jina, Exa, Groq")
     doctor.set_defaults(func=cmd_doctor)

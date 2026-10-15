@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir -e . \
     && pip install --no-cache-dir \
         "twitter-cli @ git+https://github.com/jackwener/twitter-cli.git@7c634e0d396b1e7af9f63315b414925fe4f29ae7" \
         "rdt-cli @ git+https://github.com/public-clis/rdt-cli.git@5e4fb3720d5c174e976cd425ccc3b879d52cac66" \
+        "kabi-discord-cli==0.2.8" \
         "agent-reach @ git+https://github.com/Panniantong/agent-reach.git@94f06c1969dfc1834001269d79d3ad0972d9dee6"
 COPY config ./config
 

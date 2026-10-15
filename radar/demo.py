@@ -215,6 +215,53 @@ def seed(session: Session) -> None:
             ],
         }
 
+    # Community talk (Discord, Shopify Community): raw messages and a Vietnamese 24-hour digest.
+    discord_msgs = [
+        ("maria", "Theme editor takes ~20s to load on pages with 30+ sections since yesterday, anyone else?", 3, 6),
+        ("dev_kim", "Same here on Dawn 15. Section groups seem to make it worse.", 2, 4),
+        ("tom", "Is there a way to nest blocks inside app blocks yet?", 5, 0),
+        ("lena", "Tip: use {% render %} with only the variables you need, cut our render time a lot", 9, 11),
+    ]
+    talk_ids = []
+    for i, (author, text, hours_ago, reactions) in enumerate(discord_msgs):
+        msg = Item(
+            source_id="discord",
+            url=f"https://discord.com/channels/111/222/{900 + i}",
+            title=text[:160],
+            content=text,
+            author=author,
+            media_type="message",
+            published_at=now - timedelta(hours=hours_ago),
+            first_seen=now - timedelta(hours=hours_ago),
+            last_seen=now,
+            metrics={"likes": reactions} if reactions else {},
+            extra={"channel": "theme-dev", "channel_id": "222"},
+            keyword_matched=True,
+        )
+        session.add(msg)
+        session.flush()
+        talk_ids.append(msg.id)
+    session.add(
+        Report(
+            kind="community",
+            period_start=today - timedelta(days=1),
+            period_end=today,
+            items_considered=len(talk_ids) + 1,
+            model="claude-opus-5-5",
+            content={
+                "overview": "Trong 24 giờ qua, cộng đồng tập trung vào việc theme editor chậm trên trang nhiều section, nhất là với Dawn 15 và section group. Ngoài ra có câu hỏi về lồng block trong app block và một mẹo giảm thời gian render bằng {% render %}.",
+                "topics": [
+                    {"title": "Theme editor chậm với trang nhiều section", "summary": "Nhiều người báo editor mất khoảng 20 giây để tải trang có trên 30 section từ hôm qua; có người nghi section group làm chậm thêm. Chưa có phản hồi chính thức.", "kind": "problem", "sources": ["Discord #theme-dev", "Shopify Community"], "item_ids": talk_ids[:2]},
+                    {"title": "Mẹo giảm thời gian render", "summary": "Dùng {% render %} và chỉ truyền biến cần thiết giúp giảm đáng kể thời gian render.", "kind": "tip", "sources": ["Discord #theme-dev"], "item_ids": talk_ids[3:4]},
+                ],
+                "open_questions": [{"text": "Đã lồng block bên trong app block được chưa?", "item_ids": talk_ids[2:3]}],
+                "window_start": (now - timedelta(hours=24)).isoformat(),
+                "window_end": now.isoformat(),
+                "places": [{"name": "Discord #theme-dev", "count": len(talk_ids)}, {"name": "Shopify Community", "count": 1}],
+            },
+        )
+    )
+
     rescore(session, config)
 
 

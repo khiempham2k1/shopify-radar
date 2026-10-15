@@ -11,6 +11,7 @@ from radar.collectors.base import (
     CollectResult,
     Http,
 )
+from radar.collectors.discord import DiscordCollector
 from radar.collectors.editions import EditionsCollector
 from radar.collectors.feeds import (
     CommunityCollector,
@@ -25,6 +26,7 @@ REGISTRY: dict[str, type[Collector]] = {
     for cls in (
         RSSCollector,
         CommunityCollector,
+        DiscordCollector,
         GitHubReleasesCollector,
         EditionsCollector,
         RedditCollector,

@@ -190,3 +190,45 @@ export interface Usage {
   daily: { date: string; cost: number }[];
   groq: { videos: number; audio_minutes: number };
 }
+
+export interface CommunityRef {
+  id: number;
+  url: string;
+  title: string;
+  text: string;
+  summary: string;
+  author: string;
+  place: string;
+  when: string | null;
+  reactions: number;
+  comments: number;
+  is_reply: boolean;
+}
+
+export interface CommunityTopic {
+  title: string;
+  summary: string;
+  kind: "question" | "problem" | "tip" | "news" | "discussion";
+  sources: string[];
+  item_ids: number[];
+  items: CommunityRef[];
+}
+
+export interface CommunityPage {
+  digest: {
+    id: number;
+    created_at: string | null;
+    items_considered: number;
+    window_start?: string;
+    window_end?: string;
+    places?: { name: string; count: number }[];
+    overview: string;
+    topics: CommunityTopic[];
+    open_questions: { text: string; item_ids: number[]; items: CommunityRef[] }[];
+  } | null;
+  digests: { id: number; created_at: string | null; items_considered: number }[];
+  hours: number;
+  threads: CommunityRef[];
+  channels: { name: string; count: number; messages: CommunityRef[] }[];
+  sources: { id: string; name: string; enabled: boolean }[];
+}

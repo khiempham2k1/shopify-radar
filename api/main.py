@@ -247,7 +247,8 @@ def list_items(
     now = utcnow()
 
     stmt = item_query().join(Source, Source.id == Item.source_id).outerjoin(ItemStatus, ItemStatus.item_id == Item.id)
-    conditions = [Item.last_seen >= now - timedelta(days=days)]
+    # Community talk (Discord, Shopify Community) has its own page: /api/community.
+    conditions = [Item.last_seen >= now - timedelta(days=days), Source.kind != "community"]
     if view == "platform":
         conditions.append(Source.kind == "platform")
     elif view == "feed":
@@ -355,7 +356,7 @@ def todo_items(session: Session, min_score: float, todo_threshold: float, limit:
     feed = list(
         session.scalars(
             base.where(
-                Source.kind != "platform",
+                Source.kind.not_in(["platform", "community"]),
                 Item.score >= todo_threshold,
                 visible_clause(min_score),
                 open_status,
@@ -392,7 +393,7 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
     rows = session.execute(
         select(Item.id, Item.first_seen, Source.kind)
         .join(Source, Source.id == Item.source_id)
-        .where(Item.first_seen >= local_midnight(13), visible_clause(min_score))
+        .where(Item.first_seen >= local_midnight(13), visible_clause(min_score), Source.kind != "community")
     ).all()
     daily: dict[date, Counter[str]] = defaultdict(Counter)
     new_7d = new_prev = 0
@@ -461,6 +462,68 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         "priority": {"topics": [t.name for t in config.priorities], "items": [serialize_item(i, done) for i in priority]},
         "last_run": iso(last_run.finished_at) if last_run else None,
         "schedule": config.schedule.get("collect", ""),
+    }
+
+
+# ── community (Discord, Shopify Community) ──────────────────────────
+
+
+def community_ref(item: Item, places: dict[str, str]) -> dict[str, Any]:
+    from radar.ai.community import place
+
+    return {
+        "id": item.id,
+        "url": item.url,
+        "title": item.title,
+        "text": (item.content or "")[:500],
+        "summary": item.summary,
+        "author": item.author,
+        "place": place(item, places),
+        "when": iso(item.published_at or item.first_seen),
+        "reactions": (item.metrics or {}).get("likes", 0),
+        "comments": (item.metrics or {}).get("comments", 0),
+        "is_reply": bool((item.extra or {}).get("reply_to")),
+    }
+
+
+@app.get("/api/community")
+def community_page(
+    session: SessionDep,
+    _: UserDep,
+    digest: int | None = None,
+    hours: int = Query(24, ge=1, le=168),
+    per_channel: int = Query(40, ge=1, le=200),
+) -> dict[str, Any]:
+    """What people discuss: the Vietnamese digest (latest, or the one asked for), community
+    threads with their summaries, and recent messages per Discord channel. Not rated."""
+    from radar.ai.community import KIND, community_sources, place, window_items
+
+    sources = community_sources(session)
+    digests = list(session.scalars(select(Report).where(Report.kind == KIND).order_by(Report.created_at.desc()).limit(30)))
+    chosen = next((d for d in digests if d.id == digest), None) if digest else (digests[0] if digests else None)
+
+    digest_out = None
+    if chosen is not None:
+        content = dict(chosen.content or {})
+        ids = {i for section in ("topics", "open_questions") for entry in content.get(section, []) for i in entry.get("item_ids", [])}
+        refs = {i.id: community_ref(i, sources) for i in session.scalars(select(Item).where(Item.id.in_(ids)))} if ids else {}
+        for section in ("topics", "open_questions"):
+            content[section] = [{**entry, "items": [refs[i] for i in entry.get("item_ids", []) if i in refs]} for entry in content.get(section, [])]
+        digest_out = {"id": chosen.id, "created_at": iso(chosen.created_at), "items_considered": chosen.items_considered, **content}
+
+    items = window_items(session, hours)
+    threads = [community_ref(i, sources) for i in reversed(items) if i.media_type != "message"]
+    channels: dict[str, list[dict[str, Any]]] = {}
+    for item in reversed(items):  # newest first
+        if item.media_type == "message":
+            channels.setdefault(place(item, sources), []).append(community_ref(item, sources))
+    return {
+        "digest": digest_out,
+        "digests": [{"id": d.id, "created_at": iso(d.created_at), "items_considered": d.items_considered} for d in digests],
+        "hours": hours,
+        "threads": threads,
+        "channels": [{"name": name, "count": len(msgs), "messages": msgs[:per_channel]} for name, msgs in channels.items()],
+        "sources": [{"id": s.id, "name": s.name, "enabled": s.enabled} for s in sources.values()],
     }
 
 
@@ -597,7 +660,7 @@ def serialize_report(session: Session, report: Report, full: bool) -> dict[str, 
 
 @app.get("/api/reports")
 def list_reports(session: SessionDep, _: UserDep) -> list[dict[str, Any]]:
-    rows = session.scalars(select(Report).order_by(Report.period_start.desc()).limit(52))
+    rows = session.scalars(select(Report).where(Report.kind == "weekly").order_by(Report.period_start.desc()).limit(52))
     return [serialize_report(session, r, full=False) for r in rows]
 
 

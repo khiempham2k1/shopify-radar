@@ -334,3 +334,18 @@ tfoot td { font-weight: 600; }
 .sub-head { font-size: 13px; font-weight: 600; margin: 18px 0 10px; }
 .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .checks li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; overflow-wrap: anywhere; }
+
+/* Community page */
+.c-overview { margin: 0 0 14px; line-height: 1.55; }
+.c-topics { display: flex; flex-direction: column; gap: 8px; }
+.c-topic { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.c-topic > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.c-topic p { margin: 8px 0 4px; line-height: 1.5; }
+.c-kind { font-size: 11.5px; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 7px; }
+.c-refs { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.c-quote { color: var(--muted); overflow-wrap: anywhere; }
+.c-questions { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.c-link { margin-left: 8px; font-size: 12.5px; }
+.c-channel { border-top: 1px solid var(--line); padding: 10px 0; }
+.c-channel > summary { cursor: pointer; }
+.c-messages { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; overflow-wrap: anywhere; }

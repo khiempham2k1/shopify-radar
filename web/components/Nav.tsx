@@ -13,6 +13,7 @@ const PHASE_1 = [
   { href: "/", label: "Tổng quan" },
   { href: "/platform", label: "Thay đổi nền tảng" },
   { href: "/feed", label: "Feed" },
+  { href: "/community", label: "Thảo luận cộng đồng" },
   { href: "/health", label: "Sức khỏe nguồn" },
 ];
 const PHASE_2 = [

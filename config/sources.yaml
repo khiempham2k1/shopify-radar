@@ -42,6 +42,13 @@ ai:
     claude-sonnet-5-5: {input: 2.0, output: 10.0, cache_read: 0.2, cache_write: 2.5}
     claude-haiku-5-5: {input: 0.1, output: 0.5, cache_read: 0.01, cache_write: 0.125}
 
+community:
+  # Trang "Thảo luận cộng đồng" (nguồn kind: community — Discord, Shopify Community)
+  digest_hours: 24                # tóm tắt những gì bàn trong chừng này giờ
+  digest_every_hours: 6           # làm mới bản tóm tắt tối đa mỗi chừng này giờ (mỗi lần là một lần gọi Claude)
+  digest_effort: medium
+  max_chars: 80000                # giới hạn độ dài tin gửi Claude cho mỗi bản tóm tắt
+
 video:
   min_score: 0.5                  # chỉ nghe video có điểm liên quan sơ bộ ≥ mức này
   max_minutes: 60
@@ -136,14 +143,33 @@ sources:
     queries: ["shopify theme", "shopify liquid", "\"theme store\" shopify"]
     limit: 30
 
+  # ── Thảo luận cộng đồng (menu riêng) ─────────────────────────
+  # kind: community → không chấm điểm hay phân loại từng tin; trang "Thảo luận cộng đồng" tóm tắt
+  # bằng tiếng Việt những gì mọi người bàn trong 24 giờ qua, và tóm tắt từng chủ đề Community.
   - id: shopify-community
     name: Shopify Community
     type: community
-    kind: social
+    kind: community
+    keyword_filter: false         # lấy hết, không lọc từ khóa: mục đích là theo dõi mọi người bàn gì
+    max_age_days: 7
     backends: [rss, jina]
     urls: ["https://community.shopify.com/latest.rss"]
     page_url: "https://community.shopify.com/latest"
     expected_domain: shopify.com
+
+  # Discord đọc bằng discord-cli với TÀI KHOẢN RIÊNG CỦA RADAR (DISCORD_TOKEN trong .env).
+  # Tài khoản này vào server cộng đồng như một thành viên. Discord không cho phép tự động hóa bằng
+  # tài khoản thường và có thể khóa tài khoản: chỉ đọc, ít kênh, mỗi 2 giờ.
+  # Lấy ID kênh: Discord → Cài đặt → Nâng cao → bật Developer Mode → chuột phải vào kênh → Copy Channel ID.
+  - id: discord
+    name: Discord
+    type: discord
+    kind: community
+    backends: [discord-cli]
+    keyword_filter: false
+    max_age_days: 7
+    limit: 300                    # tin tối đa mỗi kênh mỗi lần
+    channels: []                  # ví dụ: - {id: "123456789012345678", name: "general"}
 
   - id: youtube
     name: YouTube
