@@ -74,3 +74,20 @@ def test_repo_keywords_file_parses():
     assert len(cfg.groups) >= 5
     assert "Nhu cầu merchant" in cfg.match("Looking for a Shopify theme with quick add")
     assert cfg.match("Shopify is hiring theme developers") == []
+
+
+def test_load_dotenv_fills_only_missing(tmp_path, monkeypatch):
+    from radar.settings import load_dotenv
+
+    env = tmp_path / ".env"
+    env.write_text('# c\nRADAR_T1=from-file\nexport RADAR_T2="quoted"\nRADAR_T3=file\nnot a line\n')
+    monkeypatch.delenv("RADAR_T1", raising=False)
+    monkeypatch.delenv("RADAR_T2", raising=False)
+    monkeypatch.setenv("RADAR_T3", "real")
+    load_dotenv(env)
+    import os
+
+    assert os.environ["RADAR_T1"] == "from-file" and os.environ["RADAR_T2"] == "quoted"
+    assert os.environ["RADAR_T3"] == "real"
+    monkeypatch.delenv("RADAR_T1")
+    monkeypatch.delenv("RADAR_T2")
