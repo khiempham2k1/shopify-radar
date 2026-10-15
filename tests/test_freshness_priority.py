@@ -33,7 +33,7 @@ def test_old_items_are_skipped_and_undated_videos_too(session, config):
     assert (stats.new, stats.too_old) == (1, 2)
     assert set(session.scalars(select(Item.url))) == {"https://y/new"}
     # Reddit keeps undated posts; only the dated old one is dropped.
-    stats = store_items(session, "reddit", [CollectedItem(url=i.url, title=i.title, published_at=i.published_at) for i in items], config.keywords, max_age_days=30)
+    stats = store_items(session, "reddit", [CollectedItem(url=i.url.replace("y/", "r/"), title=i.title, published_at=i.published_at) for i in items], config.keywords, max_age_days=30)
     assert (stats.new, stats.too_old) == (2, 1)
 
 

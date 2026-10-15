@@ -104,6 +104,21 @@ sources:
     queries: ["shopify theme", "shopify liquid", "theme editor"]
     limit: 25
 
+  # Tài khoản chính thức trên X. Đặt trước nguồn "twitter" để bài chính thức được giữ, kết quả
+  # tìm kiếm trùng sẽ gộp vào. Các tài khoản đăng lại bài của nhau: retweet, cùng nội dung hoặc
+  # cùng link chỉ giữ một bài (ghi "đăng bởi" các tài khoản); tweet chỉ trỏ tới bài changelog,
+  # Editions… đã có thì gắn vào bài đó, không tạo dòng mới.
+  - id: x-official
+    name: Shopify trên X
+    type: x_accounts
+    kind: platform
+    backends: [twitter-cli]
+    accounts: [ShopifyDevs, ShopifyEng, Shopify]   # thứ tự ưu tiên khi cùng một bài
+    limit: 20
+    dedupe_links: true
+    dedupe_text: true
+    media_type: post
+
   - id: twitter
     name: X/Twitter
     type: twitter

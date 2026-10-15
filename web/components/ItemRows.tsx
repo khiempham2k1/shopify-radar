@@ -34,6 +34,44 @@ export function PriorityTags({ item }: { item: Item }) {
   );
 }
 
+interface AlsoEntry {
+  source_name?: string;
+  url?: string;
+  author?: string;
+  posted_by?: string[];
+}
+
+function handles(list: unknown): string[] {
+  return Array.isArray(list) ? list.filter((h): h is string => typeof h === "string" && h !== "") : [];
+}
+
+/** Accounts that posted it, and the other places the same post was found (merged, not listed twice). */
+function Reposts({ item }: { item: Item }) {
+  const postedBy = handles(item.extra?.posted_by);
+  const also = (Array.isArray(item.extra?.also) ? (item.extra.also as AlsoEntry[]) : []).filter((a) => a && typeof a.url === "string");
+  if (postedBy.length < 2 && also.length === 0) return null;
+  return (
+    <div className="also">
+      {postedBy.length >= 2 && <span>Đăng bởi {postedBy.map((h) => "@" + h).join(" · ")}</span>}
+      {also.length > 0 && (
+        <span>
+          Cũng có trên:{" "}
+          {also.map((a, i) => {
+            const by = handles(a.posted_by);
+            const label = `${a.source_name ?? "nguồn khác"}${by.length ? ` (${by.map((h) => "@" + h).join(", ")})` : a.author ? ` (${a.author})` : ""}`;
+            return (
+              <span key={a.url}>
+                {i > 0 && " · "}
+                <External href={a.url as string}>{label}</External>
+              </span>
+            );
+          })}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function Affects({ item }: { item: Item }) {
   if (item.affects.length === 0) return null;
   return (
@@ -61,6 +99,7 @@ export function PlatformRow({ item, compact = false }: { item: Item; compact?: b
           {typeof item.extra?.section === "string" && <span className="tag">{item.extra.section}</span>}
         </div>
         {!compact && item.summary && <div className="ai">{item.summary}</div>}
+        {!compact && <Reposts item={item} />}
       </div>
       <div className="side">
         {item.impact ? (
@@ -152,6 +191,7 @@ export function FeedRow({ item, compact = false, onDismiss }: { item: Item; comp
           ))}
         </div>
         {!compact && <Body item={item} />}
+        {!compact && <Reposts item={item} />}
       </div>
       <div className="side">
         <TranscriptBadge item={item} />

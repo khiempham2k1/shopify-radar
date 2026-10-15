@@ -17,7 +17,7 @@ from radar.collectors.feeds import (
     GitHubReleasesCollector,
     RSSCollector,
 )
-from radar.collectors.social import RedditCollector, TwitterCollector, YouTubeCollector
+from radar.collectors.social import RedditCollector, TwitterCollector, XAccountsCollector, YouTubeCollector
 from radar.collectors.web import HackerNewsCollector, WebSearchCollector
 
 REGISTRY: dict[str, type[Collector]] = {
@@ -29,6 +29,7 @@ REGISTRY: dict[str, type[Collector]] = {
         EditionsCollector,
         RedditCollector,
         TwitterCollector,
+        XAccountsCollector,
         YouTubeCollector,
         WebSearchCollector,
         HackerNewsCollector,

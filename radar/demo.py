@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from radar.config_loader import load_config
@@ -196,6 +197,24 @@ def seed(session: Session) -> None:
         ],
     )
     session.flush()
+    # Official X posts: one tweet posted by two accounts, and one that only pointed at a
+    # changelog entry, so it is attached to that entry instead of listed again.
+    add(
+        "x-official",
+        "Theme blocks: nesting and presets now available to every Theme Store theme",
+        "Shopify thông báo theme block hỗ trợ lồng nhau và preset; theme cần cập nhật schema để dùng.",
+        3, "neu", 0.82, {"likes": 640, "retweets": 120, "views": 98000}, 20,
+        impact="med", media="post", extra={"posted_by": ["ShopifyDevs", "ShopifyEng"]}, affects="theme,merchant",
+    )
+    target = session.scalar(select(Item).where(Item.title == "Theme editor: block-level color schemes"))
+    if target is not None:
+        target.extra = {
+            **(target.extra or {}),
+            "also": [
+                {"source": "x-official", "source_name": "Shopify trên X", "url": "https://x.com/ShopifyDevs/status/1", "author": "@ShopifyDevs", "posted_by": ["ShopifyDevs", "Shopify"]},
+            ],
+        }
+
     rescore(session, config)
 
 

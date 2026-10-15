@@ -1,7 +1,8 @@
-"""Reddit (rdt-cli → Exa), X (twitter-cli) and YouTube (yt-dlp) collectors."""
+"""Reddit (rdt-cli → Exa), X search and official X accounts (twitter-cli) and YouTube (yt-dlp) collectors."""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -13,6 +14,8 @@ from radar.collectors.base import (
     run_cli,
     to_datetime,
 )
+
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 def reddit_post_to_item(post: dict[str, Any]) -> CollectedItem | None:
@@ -87,10 +90,21 @@ def tweet_to_item(tweet: dict[str, Any]) -> CollectedItem | None:
         return None
     metrics = tweet.get("metrics") or {}
     first_line = text.splitlines()[0]
+    links = [u for u in tweet.get("urls") or [] if isinstance(u, str) and u]
+    quoted = tweet.get("quotedTweet") or {}
+    if quoted.get("id"):
+        links.append(f"https://x.com/{(quoted.get('author') or {}).get('screenName') or 'i'}/status/{quoted['id']}")
+    content = text
+    if quoted.get("text"):
+        content += f"\n\nTrích dẫn @{(quoted.get('author') or {}).get('screenName', '')}: {quoted['text']}"
+    if links:
+        content += "\n\nLink: " + " ".join(links)
+    # A retweet carries the original tweet's id and author; retweetedBy is the account that shared it.
+    posted_by = [tweet.get("retweetedBy") or handle] if (tweet.get("retweetedBy") or handle) else []
     return CollectedItem(
         url=f"https://x.com/{handle or 'i'}/status/{tweet_id}",
         title=first_line[:200],
-        content=text[:5000],
+        content=content[:5000],
         author=f"@{handle}" if handle else "",
         published_at=to_datetime(tweet.get("createdAt")),
         external_id=tweet_id,
@@ -101,6 +115,7 @@ def tweet_to_item(tweet: dict[str, Any]) -> CollectedItem | None:
             "comments": int(metrics.get("replies") or 0),
             "views": int(metrics.get("views") or 0),
         },
+        extra={"links": links, "posted_by": posted_by, "text": text[:1000]},
     )
 
 
@@ -115,6 +130,39 @@ class TwitterCollector(Collector):
             items.extend(i for i in (tweet_to_item(t) for t in (data if isinstance(data, list) else [])) if i)
             self.http.pause(2.0)
         return items
+
+
+class XAccountsCollector(Collector):
+    """Recent posts of chosen accounts (the official Shopify ones). The accounts
+    repost each other, so one post can show up several times: retweets of the
+    same tweet are merged here, and posts that repeat a text or a shared link
+    are merged at ingest through the dedupe keys (dedupe_links / dedupe_text)."""
+
+    type = "x_accounts"
+    default_backends = ["twitter-cli"]
+
+    def fetch_twitter_cli(self) -> list[CollectedItem]:
+        by_url: dict[str, CollectedItem] = {}
+        errors: list[str] = []
+        accounts = [a.lstrip("@") for a in self.source.get("accounts", [])]
+        for account in accounts:  # listed in order of preference: the first account keeps a shared post
+            try:
+                data = run_cli(["twitter", "user-posts", account, "--max", str(self.limit), "--json"])
+            except CollectError as exc:
+                errors.append(f"@{account}: {exc}")
+                continue
+            tweets = [t for t in (data if isinstance(data, list) else []) if isinstance(t, dict) and not t.get("isPromoted")]
+            # Oldest first, so when two posts repeat each other the original is stored and the repeat attached.
+            for item in sorted((i for i in map(tweet_to_item, tweets) if i), key=lambda i: i.published_at or EPOCH):
+                known = by_url.get(item.url)
+                if known is None:
+                    by_url[item.url] = item
+                else:
+                    known.extra["posted_by"] = list(dict.fromkeys([*known.extra.get("posted_by", []), *item.extra.get("posted_by", [])]))
+            self.http.pause(2.0)
+        if errors and not by_url:
+            raise CollectError("; ".join(errors))
+        return list(by_url.values())
 
 
 def video_entry_to_item(entry: dict[str, Any]) -> CollectedItem | None:

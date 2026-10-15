@@ -8,6 +8,11 @@ Only fresh items are stored: anything published longer ago than the source's
 max_age_days is skipped, so a search that surfaces a three-year-old video does
 not bring it into the dashboard. Priority topics (config/priorities.txt) are
 added to every source's search queries and always pass the keyword filter.
+
+The same post is stored once across sources (radar/dedupe.py): when a new item
+shares a key with an item already stored (same page, same tweet, or for
+announcement sources the same shared link or text), it is attached to that
+item under extra.also instead of becoming a new row.
 """
 
 from __future__ import annotations
@@ -23,12 +28,14 @@ from sqlalchemy.orm import Session
 from radar.collectors import CollectedItem, Http, make_collector
 from radar.collectors.web import WebSearchCollector
 from radar.config_loader import RadarConfig
+from radar.dedupe import hashed, item_keys
 from radar.filter.keywords import KeywordConfig
 from radar.models import (
     AIAnalyzed,
     AIResult,
     CrawlRun,
     Item,
+    ItemKey,
     ItemMetricsHistory,
     ItemStatus,
     ItemTranscript,
@@ -47,6 +54,7 @@ class IngestStats:
     seen: int = 0
     blocked: int = 0
     too_old: int = 0
+    merged: int = 0
 
 
 def sync_sources(session: Session, config: RadarConfig) -> None:
@@ -112,6 +120,15 @@ def store_items(
             ):
                 stats.too_old += 1
                 continue
+            keys = hashed(item_keys(url, data.extra, data.title, data.content, source_config))
+            owner_id = session.scalar(select(ItemKey.item_id).where(ItemKey.key.in_(keys)).limit(1))
+            owner = session.get(Item, owner_id) if owner_id is not None else None
+            if owner is not None:
+                attach_duplicate(session, owner, source_id, source.name if source else source_id, data, keys, now)
+                stats.merged += 1
+                continue
+            if owner_id is not None:  # key left behind by a deleted item
+                session.execute(delete(ItemKey).where(ItemKey.item_id == owner_id))
             priority = priority_value(priorities or [], text)
             if keywords.is_blocked(text) and not priority:
                 stats.blocked += 1
@@ -136,6 +153,7 @@ def store_items(
             )
             session.add(row)
             session.flush()
+            add_keys(session, row.id, keys)
             stats.new += 1
         else:
             row.last_seen = now
@@ -146,11 +164,60 @@ def store_items(
                 row.content = data.content
             if data.published_at and not row.published_at:
                 row.published_at = data.published_at
+            posted_by = (data.extra or {}).get("posted_by")
+            if posted_by:
+                merged = list(dict.fromkeys([*(row.extra or {}).get("posted_by", []), *posted_by]))
+                row.extra = {**(row.extra or {}), "posted_by": merged}
             stats.seen += 1
         if data.metrics:
             session.add(ItemMetricsHistory(item_id=row.id, captured_at=now, metrics=data.metrics))
     session.flush()
     return stats
+
+
+def add_keys(session: Session, item_id: int, keys: list[str]) -> None:
+    taken = set(session.scalars(select(ItemKey.key).where(ItemKey.key.in_(keys))))
+    for key in keys:
+        if key not in taken:
+            session.add(ItemKey(key=key, item_id=item_id))
+    session.flush()
+
+
+def attach_duplicate(session: Session, target: Item, source_id: str, source_name: str, data: CollectedItem, keys: list[str], now: datetime) -> None:
+    """Record that `data` repeats `target` (another account, another source) without storing it again."""
+    also = list((target.extra or {}).get("also", []))
+    if not any(a.get("url") == data.url for a in also) and data.url != target.url:
+        also.append(
+            {
+                "source": source_id,
+                "source_name": source_name,
+                "url": data.url,
+                "author": data.author,
+                "posted_by": (data.extra or {}).get("posted_by", []),
+            }
+        )
+    extra = {**(target.extra or {}), "also": also[-20:]}
+    if data.extra.get("posted_by") and target.source_id == source_id:
+        extra["posted_by"] = list(dict.fromkeys([*extra.get("posted_by", []), *data.extra["posted_by"]]))
+    target.extra = extra
+    target.last_seen = now
+    add_keys(session, target.id, keys)
+
+
+def ensure_url_keys(session: Session) -> int:
+    """Give items stored before item_keys existed their URL key (once)."""
+    keyed = select(ItemKey.item_id)
+    rows = session.execute(select(Item.id, Item.url, Item.extra).where(Item.id.not_in(keyed))).all()
+    taken = set(session.scalars(select(ItemKey.key)))
+    added = 0
+    for item_id, url, extra in rows:
+        for key in hashed(item_keys(url, {"dedupe_keys": (extra or {}).get("dedupe_keys", [])})):
+            if key not in taken:
+                session.add(ItemKey(key=key, item_id=item_id))
+                taken.add(key)
+                added += 1
+    session.flush()
+    return added
 
 
 def collect_all(
@@ -160,6 +227,7 @@ def collect_all(
     http: Http | None = None,
 ) -> CrawlRun:
     sync_sources(session, config)
+    ensure_url_keys(session)
     run = CrawlRun(started_at=utcnow())
     session.add(run)
     session.flush()
@@ -186,6 +254,7 @@ def collect_all(
                 f"{stats.new} mới, {stats.seen} đã có"
                 + (f", {stats.blocked} bị loại" if stats.blocked else "")
                 + (f", {stats.too_old} quá {max_age} ngày nên bỏ qua" if stats.too_old else "")
+                + (f", {stats.merged} trùng nên gộp vào bài đã có" if stats.merged else "")
                 + (f". {message}" if message else "")
             )
         session.add(
@@ -239,7 +308,7 @@ def prune_stale(session: Session, config: RadarConfig, now: datetime | None = No
 
 def delete_items(session: Session, ids: list[int]) -> None:
     """Delete items and their child rows explicitly: SQLite does not enforce ON DELETE CASCADE."""
-    for model in (ItemMetricsHistory, AIResult, AIAnalyzed, ItemStatus, ItemTranscript):
+    for model in (ItemKey, ItemMetricsHistory, AIResult, AIAnalyzed, ItemStatus, ItemTranscript):
         session.execute(delete(model).where(model.item_id.in_(ids)).execution_options(synchronize_session=False))
     session.execute(delete(Item).where(Item.id.in_(ids)).execution_options(synchronize_session=False))
     session.expire_all()
@@ -253,6 +322,8 @@ def prune_old(session: Session, retention_days: int) -> int:
     if retention_days <= 0:
         return 0
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
-    result = session.execute(delete(Item).where(Item.last_seen < cutoff).execution_options(synchronize_session=False))
+    ids = list(session.scalars(select(Item.id).where(Item.last_seen < cutoff)))
+    if ids:
+        delete_items(session, ids)
     session.execute(delete(SourceStatus).where(SourceStatus.created_at < cutoff).execution_options(synchronize_session=False))
-    return result.rowcount or 0
+    return len(ids)

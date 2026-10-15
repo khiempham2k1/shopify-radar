@@ -83,6 +83,17 @@ class Item(Base):
     transcript: Mapped[ItemTranscript | None] = relationship(back_populates="item", uselist=False, cascade="all, delete-orphan")
 
 
+class ItemKey(Base):
+    """Hashed dedupe keys (normalized URL, tweet id, shared link, text). One key
+    belongs to one item, so the same post from another account or source is
+    attached to the item that has it instead of stored again (radar/dedupe.py)."""
+
+    __tablename__ = "item_keys"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id", ondelete="CASCADE"), index=True)
+
+
 class ItemMetricsHistory(Base):
     __tablename__ = "item_metrics_history"
 
