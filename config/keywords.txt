@@ -31,11 +31,18 @@ theme store
 online store 2.0
 /\bliquid\b/
 /\bjson templates?\b/
-section rendering
 /\bsections? (group|schema)s?\b/
 /\bmetafields?\b/
 /\bmetaobjects?\b/
 /\b(dawn|horizon) theme\b/
+
+[API cho theme]
+/\b(ajax|cart) api\b/
+/\bcart(\/(add|change|update|clear))?\.js\b/
+/\bsection rendering( api)?\b/
+/\bpredictive search( api)?\b/
+/\bproduct recommendations? api\b/
+/\/(products\/[\w-]+|recommendations\/products)\.js(on)?\b/
 
 [App trong theme]
 /\bapp blocks?\b/

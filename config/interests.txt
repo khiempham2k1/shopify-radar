@@ -2,7 +2,7 @@ Chúng tôi là công ty làm theme bán trên Shopify Theme Store. Radar tập 
 những gì làm thay đổi cách theme được xây, duyệt, bán hoặc chạy trên store của merchant.
 Xếp theo thứ tự ưu tiên:
 
-1. Thay đổi nền tảng ảnh hưởng tới theme, nhất là có hạn chót: Liquid (tag, filter, object mới hoặc bị ngừng hỗ trợ), cấu trúc theme, Online Store 2.0, JSON template, section, block, theme block, settings schema, metafield và metaobject dùng trong theme, Section Rendering API, Ajax/Cart API.
+1. Thay đổi nền tảng ảnh hưởng tới theme, nhất là có hạn chót: Liquid (tag, filter, object mới hoặc bị ngừng hỗ trợ), cấu trúc theme, Online Store 2.0, JSON template, section, block, theme block, settings schema, metafield và metaobject dùng trong theme, và các API theme gọi từ trình duyệt: Ajax API (Cart API /cart/add.js, /cart/change.js, /cart/update.js, Product API, Predictive Search API, Product Recommendations API) và Section Rendering API.
 2. Yêu cầu duyệt của Theme Store, chính sách dành cho người bán theme, tiêu chí hiệu năng và accessibility (Lighthouse, Core Web Vitals).
 3. Theme editor: tính năng mới, thay đổi cách merchant chỉnh theme, lỗi và độ chậm của editor.
 4. Theme mặc định và theme tham chiếu của Shopify (Dawn, Horizon…), Shopify CLI cho theme, Theme Check, công cụ dev theme.
