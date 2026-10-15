@@ -6,6 +6,8 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 git pull --ff-only
+# Folders mounted into containers: create them as this user, or Docker creates them owned by root.
+mkdir -p secrets/rdt-cli secrets/youtube backups
 docker compose up -d --build
 docker image prune -f >/dev/null
 docker compose ps
