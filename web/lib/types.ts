@@ -47,6 +47,10 @@ export interface Item {
   impact: Impact | null;
   /** Who it affects: theme code, the company as Theme Store partner, merchants using the theme. */
   affects: Audience[];
+  /** Impact area chosen by Claude (impact_areas.txt); group "none" = not about themes. */
+  area: { id: string; label: string; group: string } | null;
+  /** Claude's one-line reason for the area. */
+  reason: string;
   deadline: string | null;
   days_left: number | null;
   status: ItemStatus;

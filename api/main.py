@@ -120,6 +120,16 @@ def best_result(item: Item) -> AIResult | None:
     return max(active, key=lambda r: r.score) if active else None
 
 
+def area_labels() -> dict[str, tuple[str, str]]:
+    """id → (label, group) from impact_areas.txt, for display."""
+    from radar.areas import parse_areas
+
+    try:
+        return {a.id: (a.label, a.group) for a in parse_areas(read_text("impact_areas.txt"))}
+    except ValueError:
+        return {}
+
+
 def serialize_item(item: Item, analyzed_ids: set[int], full: bool = False) -> dict[str, Any]:
     result = best_result(item)
     status = item.status
@@ -151,6 +161,12 @@ def serialize_item(item: Item, analyzed_ids: set[int], full: bool = False) -> di
         "sentiment": result.sentiment if result else None,
         "impact": result.impact if result else None,
         "affects": result.affects.split(",") if result and result.affects else [],
+        "area": (
+            {"id": result.area, "label": area_labels().get(result.area, (result.area, ""))[0], "group": area_labels().get(result.area, ("", ""))[1]}
+            if result and result.area
+            else None
+        ),
+        "reason": result.reason if result else "",
         "deadline": result.deadline.isoformat() if result and result.deadline else None,
         "days_left": (result.deadline - today).days if result and result.deadline else None,
         "status": status.status if status else "new",
@@ -347,28 +363,34 @@ def patch_item(item_id: int, body: ItemPatch, session: SessionDep, user: UserDep
 # ── overview ────────────────────────────────────────────────────────
 
 
-def todo_items(session: Session, min_score: float, todo_threshold: float, limit: int = 20) -> list[Item]:
-    """High-impact platform changes not done yet, then high-score discussions not handled."""
+DEFAULT_RELEASE_SOURCES = ["shopify-dev-changelog", "shopify-changelog", "shopify-editions"]
+
+
+def release_sources(config: Any) -> list[str]:
+    """Sources that publish released platform changes (release_notes: true in sources.yaml)."""
+    flagged = [s["id"] for s in config.raw.get("sources", []) if s.get("release_notes")]
+    return flagged or DEFAULT_RELEASE_SOURCES
+
+
+def todo_items(session: Session, min_score: float, release_ids: list[str], limit: int = 20) -> list[Item]:
+    """Released platform changes (changelogs, Editions) that need work and are not done yet:
+    high impact, or medium impact with a deadline, on an area that matters to themes.
+    Articles and discussions from elsewhere never appear here."""
     open_status = or_(ItemStatus.status.is_(None), ItemStatus.status.in_(["new", "doing"]))
-    platform = select(AIResult.item_id).where(AIResult.status == "active", AIResult.impact == "high", AIResult.score >= min_score)
-    base = item_query().join(Source, Source.id == Item.source_id).outerjoin(ItemStatus, ItemStatus.item_id == Item.id)
+    needs_work = select(AIResult.item_id).where(
+        AIResult.status == "active",
+        AIResult.score >= min_score,
+        AIResult.affects.is_not(None),
+        or_(AIResult.impact == "high", and_(AIResult.impact == "med", AIResult.deadline.is_not(None))),
+    )
+    base = item_query().outerjoin(ItemStatus, ItemStatus.item_id == Item.id)
     since = utcnow() - timedelta(days=60)
     changes = list(
-        session.scalars(base.where(Source.kind == "platform", Item.id.in_(platform), open_status, Item.last_seen >= since)).unique()
+        session.scalars(base.where(Item.source_id.in_(release_ids), Item.id.in_(needs_work), open_status, Item.last_seen >= since)).unique()
     )
-    changes.sort(key=lambda i: (best_result(i).deadline or date.max, -aware(i.first_seen).timestamp()))
-    feed = list(
-        session.scalars(
-            base.where(
-                Source.kind.not_in(["platform", "community"]),
-                Item.score >= todo_threshold,
-                visible_clause(min_score),
-                open_status,
-                Item.last_seen >= utcnow() - timedelta(days=7),
-            ).order_by(Item.official.desc(), Item.score.desc())
-        ).unique()
-    )
-    return (changes + feed)[:limit]
+    impact_rank = {"high": 0, "med": 1}
+    changes.sort(key=lambda i: (best_result(i).deadline or date.max, impact_rank.get(best_result(i).impact or "", 2), -aware(i.published_at or i.first_seen).timestamp()))
+    return changes[:limit]
 
 
 def priority_items(session: Session, days: int = 30, limit: int = 12) -> list[Item]:
@@ -440,7 +462,7 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         total = sum(counts.values())
         return round(counts.get("neg", 0) / total, 3) if total else None
 
-    todo = todo_items(session, min_score, float(config.scoring.get("todo_threshold", 7.0)))
+    todo = todo_items(session, min_score, release_sources(config))
     priority = priority_items(session)
     deadlines = [
         r.deadline

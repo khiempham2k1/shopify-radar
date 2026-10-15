@@ -415,3 +415,34 @@ def test_cli_find_explains_an_item(session, config, capsys, db_url):
     assert "Unchanged carts" in out and "chưa phân loại" in out
     main(["find", "nothing-like-this"])
     assert "Không có trong DB" in capsys.readouterr().out
+
+
+def test_areas_decide_relevance_and_platform_items_are_never_dropped(session, config):
+    from radar.ai.classifier import apply_results, classify_schema
+    from radar.ai.tags import active_tags
+    from radar.areas import parse_areas
+
+    assert "cart_checkout" in classify_schema(config)["properties"]["results"]["items"]["properties"]["area"]["enum"]
+    with pytest.raises(ValueError):
+        parse_areas("x | nope | X | y")
+
+    session.add(AITag(tag="Thay đổi nền tảng", description="", priority=1, version=1, prompt_hash=config.interests_hash))
+    session.flush()
+    tag = active_tags(session)[0]
+    add_items(session, config, "shopify-dev-changelog", ["Unchanged carts no longer trigger carts/update webhooks", "New Admin API field for app billing", "Silent platform change"], media_type="change")
+    items = list(session.scalars(select(Item).order_by(Item.id)))
+    data = {
+        "results": [
+            {"id": items[0].id, "tag_id": tag.id, "score": 0.8, "sentiment": "neu", "impact": "med", "affects": [], "area": "cart_checkout", "reason": "Giỏ hàng do theme thao tác", "deadline": None, "summary": "x"},
+            {"id": items[1].id, "tag_id": tag.id, "score": 0.9, "sentiment": "neu", "impact": "high", "affects": ["theme"], "area": "app_only", "reason": "Chỉ Admin API cho app", "deadline": None, "summary": "y"},
+        ]
+    }
+    assert apply_results(session, config, items, [tag], data) == 1
+    cart, admin, silent = items
+    cart_result = [r for r in cart.results if r.status == "active"][0]
+    assert cart_result.area == "cart_checkout" and cart_result.affects == "theme" and cart_result.reason
+    admin_result = [r for r in admin.results if r.status == "active"][0]
+    assert admin_result.area == "app_only" and admin_result.score <= 0.2 and admin_result.impact is None and admin_result.affects is None
+    assert admin_result.reason == "Chỉ Admin API cho app"
+    # Claude skipped an official change: not marked analyzed, so it stays visible and is sent again.
+    assert session.get(AIAnalyzed, silent.id) is None and session.get(AIAnalyzed, admin.id) is not None

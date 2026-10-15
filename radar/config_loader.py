@@ -16,10 +16,11 @@ from sqlalchemy.orm import Session
 
 from radar.filter.keywords import KeywordConfig, parse_keywords
 from radar.models import Setting
+from radar.areas import Area, parse_areas
 from radar.priority import PriorityTopic, parse_priorities
 from radar.settings import get_settings
 
-EDITABLE_FILES = ("sources.yaml", "keywords.txt", "priorities.txt", "interests.txt", "terms.txt")
+EDITABLE_FILES = ("sources.yaml", "keywords.txt", "priorities.txt", "impact_areas.txt", "interests.txt", "terms.txt")
 
 
 def read_text(name: str, session: Session | None = None) -> str:
@@ -58,6 +59,8 @@ def validate_text(name: str, value: str) -> None:
         parse_keywords(value)
     elif name == "priorities.txt":
         parse_priorities(value)
+    elif name == "impact_areas.txt":
+        parse_areas(value)
 
 
 @dataclass
@@ -68,6 +71,7 @@ class RadarConfig:
     terms: str
     sources: list[dict[str, Any]] = field(default_factory=list)
     priorities: list[PriorityTopic] = field(default_factory=list)
+    areas: list[Area] = field(default_factory=list)
 
     def section(self, name: str) -> dict[str, Any]:
         return self.raw.get(name) or {}
@@ -119,6 +123,7 @@ def load_config(session: Session | None = None) -> RadarConfig:
         terms=read_text("terms.txt", session).strip(),
         sources=sources,
         priorities=parse_priorities(read_text("priorities.txt", session)),
+        areas=parse_areas(read_text("impact_areas.txt", session)),
     )
 
 

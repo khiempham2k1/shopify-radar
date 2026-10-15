@@ -32,6 +32,16 @@ function Help({ name }: { name: string }) {
           <span>Item nhắc tới chủ đề luôn hiển thị, được cộng điểm, có nhãn ★ và đứng đầu trang Tổng quan. Áp dụng từ lần chạy tiếp theo.</span>
         </div>
       );
+    case "impact_areas.txt":
+      return (
+        <div className="help">
+          <span>
+            Mảng ảnh hưởng AI phải chọn cho mỗi tin, kèm lý do. Mỗi dòng: <code>id | nhóm | tên hiển thị | mô tả</code>; nhóm là{" "}
+            <code>theme</code>, <code>partner</code>, <code>merchant</code> hoặc <code>none</code> (không liên quan, tin bị ẩn nhưng vẫn xem lại được).
+          </span>
+          <span>Thấy AI xếp sai thì sửa mô tả mảng cho rõ hơn, rồi chạy phân loại lại.</span>
+        </div>
+      );
     case "interests.txt":
       return (
         <div className="help">

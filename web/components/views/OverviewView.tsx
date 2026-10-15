@@ -36,7 +36,7 @@ function Kpis({ k }: { k: Overview["kpis"] }) {
       <div className="kpi">
         <span className="k">Cần xử lý</span>
         <span className="v">{fmtNumber(k.todo)}</span>
-        <span className="d">thay đổi mức cao và thảo luận điểm cao</span>
+        <span className="d">thay đổi đã phát hành ở changelog, Editions</span>
       </div>
       <div className="kpi">
         <span className="k">Hạn chót trong 90 ngày</span>
@@ -180,7 +180,7 @@ export function OverviewView() {
           </div>
           <div className="panel">
             <h2>Cần xử lý</h2>
-            <p className="sub">Thay đổi nền tảng mức cao chưa xong và thảo luận điểm cao, xếp theo hạn chót rồi điểm</p>
+            <p className="sub">Thay đổi đã phát hành ở Shopify dev changelog, Shopify Changelog và Editions, ảnh hưởng tới theme và chưa xong: mức cao, hoặc mức trung bình có hạn chót. Xếp theo hạn chót.</p>
             {data.todo.length === 0 ? (
               <Empty>Không còn việc nào cần xử lý.</Empty>
             ) : (

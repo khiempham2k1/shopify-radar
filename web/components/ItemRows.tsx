@@ -72,6 +72,16 @@ function Reposts({ item }: { item: Item }) {
   );
 }
 
+function Area({ item }: { item: Item }) {
+  if (!item.area) return null;
+  const off = item.area.group === "none";
+  return (
+    <span className={`tag ${off ? "kw" : "area"}`} title={item.reason ? `Lý do: ${item.reason}` : "Mảng ảnh hưởng"}>
+      {item.area.label}
+    </span>
+  );
+}
+
 function Affects({ item }: { item: Item }) {
   if (item.affects.length === 0) return null;
   return (
@@ -94,18 +104,19 @@ export function PlatformRow({ item, compact = false }: { item: Item; compact?: b
           <PriorityTags item={item} />
           <span className="src">{item.source.name}</span>
           {date && <span title={fmtDateTime(date)}>{fmtDayMonth(date)}</span>}
+          <Area item={item} />
           <Affects item={item} />
-          {item.tag && <span className="tag">{item.tag.name}</span>}
           {typeof item.extra?.section === "string" && <span className="tag">{item.extra.section}</span>}
         </div>
         {!compact && item.summary && <div className="ai">{item.summary}</div>}
+        {!compact && item.area?.group === "none" && item.reason && <div className="why">AI không xếp vào theme vì: {item.reason}</div>}
         {!compact && <Reposts item={item} />}
       </div>
       <div className="side">
         {item.impact ? (
           <span className={`pill ${item.impact}`}>Ảnh hưởng {IMPACT[item.impact].toLowerCase()}</span>
         ) : (
-          <span className="pill low">{!item.analyzed ? "Chưa phân tích" : item.relevance == null || item.relevance < 0.5 ? "AI: không liên quan theme" : "Chưa rõ ảnh hưởng"}</span>
+          <span className="pill low">{!item.analyzed ? "Chưa phân tích" : item.area?.group === "none" || item.relevance == null || item.relevance < 0.5 ? "AI: không liên quan theme" : "Chưa rõ ảnh hưởng"}</span>
         )}
         <Due deadline={item.deadline} days={item.days_left} />
       </div>
@@ -198,6 +209,7 @@ export function FeedRow({
           {date && <span title={fmtDateTime(date)}>{timeAgo(date)}</span>}
           {isVideo(item) && duration ? <span className="mono">{fmtClock(duration)}</span> : null}
           {metrics && <span>{metrics}</span>}
+          <Area item={item} />
           <Affects item={item} />
           {item.tag && <span className="tag">{item.tag.name}</span>}
           {item.keyword_groups.map((k) => (

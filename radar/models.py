@@ -158,6 +158,9 @@ class AIResult(Base):
     deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
     # Who it affects, comma-joined in AUDIENCES order: theme (code), partner (theme sellers), merchant.
     affects: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Impact area from config/impact_areas.txt and Claude's one-line reason for it.
+    area: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

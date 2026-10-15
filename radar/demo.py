@@ -73,6 +73,24 @@ FEED = [
 ]
 
 
+def sample_area(title: str, media: str) -> tuple[str, str]:
+    """Impact area and reason for the sample rows."""
+    rules = [
+        ("Admin GraphQL", "app_only", "Chỉ thêm trường Admin API cho app, không chạm tới storefront hay theme."),
+        ("Theme Store", "theme_store", "Thay đổi tiêu chí duyệt Theme Store."),
+        ("Ajax", "storefront_api", "Theme gọi Cart Ajax API từ JavaScript."),
+        ("cli", "theme_tooling", "Lệnh theme của Shopify CLI dùng trong quy trình dev theme."),
+        ("editor", "theme_editor", "Thay đổi cách merchant chỉnh theme trong editor."),
+        ("App block", "app_in_theme", "App hiển thị trong theme qua app block."),
+        ("Checkout", "cart_checkout", "Checkout bắt đầu từ storefront."),
+        ("Image CDN", "performance_a11y", "Ảnh ảnh hưởng tốc độ trang của theme."),
+    ]
+    for needle, area, reason in rules:
+        if needle.lower() in title.lower():
+            return area, reason
+    return ("theme_structure", "Thay đổi cấu trúc theme.") if media == "change" else ("merchant_experience", "Nhu cầu của merchant về theme.")
+
+
 def seed(session: Session) -> None:
     config = load_config(session)
     sync_sources(session, config)
@@ -105,10 +123,12 @@ def seed(session: Session) -> None:
             AIResult(
                 item_id=item.id,
                 tag_id=tags[tag_index].id,
-                score=score,
+                score=min(score, 0.2) if sample_area(title, media)[0] == "app_only" else score,
                 sentiment=sentiment,
-                impact=impact,
-                affects=affects or ("theme,merchant" if media == "change" else "merchant"),
+                impact=None if sample_area(title, media)[0] == "app_only" else impact,
+                affects=None if sample_area(title, media)[0] == "app_only" else (affects or ("theme,merchant" if media == "change" else "merchant")),
+                area=sample_area(title, media)[0],
+                reason=sample_area(title, media)[1],
                 deadline=today + timedelta(days=deadline_days) if deadline_days else None,
             )
         )

@@ -87,7 +87,7 @@ def test_reports(client):
 
 def test_settings_validation_save_and_reset(client):
     files = {f["name"]: f for f in client.get("/api/settings").json()}
-    assert set(files) == {"sources.yaml", "keywords.txt", "priorities.txt", "interests.txt", "terms.txt"}
+    assert set(files) == {"sources.yaml", "keywords.txt", "priorities.txt", "impact_areas.txt", "interests.txt", "terms.txt"}
     assert files["keywords.txt"]["origin"] == "file"
     bad = client.put("/api/settings/keywords.txt", json={"value": "[G]\n/(bad/\n"})
     assert bad.status_code == 400 and "Regex" in bad.json()["detail"]
@@ -194,3 +194,9 @@ def test_platform_can_show_changes_ai_rejected(client, db_url):
     default = [i["id"] for i in client.get("/api/items", params={"view": "platform"}).json()["items"]]
     everything = [i["id"] for i in client.get("/api/items", params={"view": "platform", "all_changes": "true"}).json()["items"]]
     assert item_id not in default and item_id in everything
+
+
+def test_todo_lists_only_released_platform_changes(client):
+    todo = client.get("/api/overview").json()["todo"]
+    assert todo and {i["source"]["id"] for i in todo} <= {"shopify-dev-changelog", "shopify-changelog", "shopify-editions"}
+    assert all(i["impact"] == "high" or (i["impact"] == "med" and i["deadline"]) for i in todo)

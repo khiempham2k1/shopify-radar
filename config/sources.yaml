@@ -61,7 +61,6 @@ scoring:
   weights: {relevance: 0.5, engagement: 0.2, cross_source: 0.15, recency: 0.15}
   recency_half_life_hours: 48
   hot_threshold: 5.0              # độ hot ≥ mức này (trong 48 giờ) = chế độ "Đang nổi" ở Feed
-  todo_threshold: 7.0             # thảo luận điểm ≥ mức này vào danh sách "Cần xử lý"
   hot_half_life_hours: 24         # "độ hot" (Feed xếp theo) giảm một nửa sau mỗi chừng này giờ kể từ khi đăng
   priority_boost: 2.0
   official_boost: 1.0             # cộng thêm cho tin từ nguồn chính thức của Shopify (tối đa 10)             # cộng thêm cho item nhắc tới chủ đề trong priorities.txt (tối đa 10)
@@ -75,6 +74,7 @@ sources:
     urls: ["https://shopify.dev/changelog/feed.xml"]
     expected_domain: shopify.dev
     media_type: change
+    release_notes: true           # thay đổi đã phát hành: được đưa vào "Cần xử lý" ở Tổng quan
 
   - id: shopify-changelog
     name: Shopify Changelog
@@ -84,6 +84,7 @@ sources:
     page_fallback: "https://changelog.shopify.com/"   # không có RSS thì đọc trang qua Jina Reader
     expected_domain: shopify.com
     media_type: change
+    release_notes: true
 
   - id: shopify-editions
     name: Shopify Editions
@@ -92,6 +93,7 @@ sources:
     url: "https://www.shopify.com/editions"
     max_age_days: 0               # luôn là Edition mới nhất, trang không ghi ngày từng tính năng
     media_type: change
+    release_notes: true
 
   # Tắt: news.shopify.com là tin doanh nghiệp (kết quả kinh doanh, đối tác, sự kiện), hầu như không có
   # thay đổi kỹ thuật cho theme; URL RSS cũng chưa được xác nhận. Bật lên nếu team muốn theo dõi.

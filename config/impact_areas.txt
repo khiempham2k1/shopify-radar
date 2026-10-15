@@ -1,0 +1,20 @@
+# Mảng ảnh hưởng: Claude chọn đúng MỘT mảng cho mỗi tin và ghi lý do.
+# Mỗi dòng: id | nhóm | tên hiển thị | mô tả (Claude đọc mô tả để quyết định)
+# Nhóm: theme, partner, merchant, none. Mảng nhóm "none" = không liên quan theme: tin bị ẩn
+# (vẫn xem lại được ở trang Thay đổi nền tảng). Thêm hoặc sửa mô tả ở đây khi thấy AI xếp sai.
+
+liquid | theme | Liquid | Liquid: tag, filter, object mới, đổi hành vi hoặc ngừng hỗ trợ; cách theme render dữ liệu
+theme_structure | theme | Cấu trúc theme | JSON template, section, block, theme block, section group, settings schema, locales, Online Store 2.0, giới hạn số section/block
+storefront_api | theme | API storefront | API theme gọi từ trình duyệt: Ajax Cart API (/cart/add.js, change.js, update.js), Product API, Predictive Search, Product Recommendations, Section Rendering API; Storefront API khi theme gọi bằng JavaScript
+cart_checkout | theme | Giỏ hàng & checkout | Hành vi giỏ hàng và checkout bắt đầu từ storefront: thuộc tính dòng hàng, giảm giá trong giỏ, chuyển sang checkout, sự kiện hoặc webhook (vd. carts/update, checkouts/create) kích hoạt khi khách thao tác trên theme
+store_data | theme | Dữ liệu hiển thị | Dữ liệu theme hiển thị: metafield, metaobject, Markets (giá, tiền tệ, ngôn ngữ), selling plan, tồn kho, media, SEO, customer account hiển thị trong theme
+theme_editor | theme | Theme editor | Theme editor: tính năng mới, cách merchant chỉnh theme, giới hạn, lỗi, độ chậm
+performance_a11y | theme | Hiệu năng & accessibility | Tốc độ trang, Core Web Vitals, Lighthouse, ảnh, script, accessibility
+theme_tooling | theme | Công cụ dev theme | Shopify CLI (lệnh theme), Theme Check, Liquid language server, theme tham chiếu (Dawn, Horizon), GitHub integration cho theme
+app_in_theme | theme | App trong theme | App block, app embed, theme app extension, app hiển thị hoặc xung đột trong theme
+theme_store | partner | Theme Store | Yêu cầu và quy trình duyệt Theme Store, tiêu chí bắt buộc, listing, review, gỡ theme
+partner_business | partner | Kinh doanh Partner | Partner Program, Partner Dashboard, doanh thu, chia sẻ doanh thu, thanh toán, điều khoản, hỗ trợ khách mua theme
+merchant_experience | merchant | Trải nghiệm merchant | Tính năng merchant thấy và dùng qua theme, cách cấu hình store hiển thị qua theme, nhu cầu và phàn nàn về theme
+app_only | none | Chỉ cho app | CHỈ dành cho app và chắc chắn không đụng tới storefront/theme: Admin API, GraphQL cho app, Shopify Functions, Polaris, App Bridge, billing, webhook không liên quan giỏ hàng/storefront, checkout UI extensions, App Store
+headless | none | Headless | Hydrogen, Oxygen, Storefront API cho site tự dựng, Customer Account API cho headless
+unrelated | none | Không liên quan | Tin doanh nghiệp, tuyển dụng, quảng cáo, sự kiện, nội dung không liên quan tới theme, Partner hay merchant

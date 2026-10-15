@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from radar.ai.client import AIError, CallSpec, ClaudeClient
 from radar.ai.tags import sync_tags
+from radar.areas import render_areas
 from radar.config_loader import RadarConfig, load_prompt
 from radar.models import (
     AIAnalyzed,
@@ -60,10 +61,12 @@ CLASSIFY_SCHEMA = {
                     "sentiment": {"type": "string", "enum": ["neg", "neu", "pos"]},
                     "impact": NULLABLE_IMPACT,
                     "affects": {"type": "array", "items": {"type": "string", "enum": list(AUDIENCES)}},
+                    "area": {"type": "string"},
+                    "reason": {"type": "string"},
                     "deadline": NULLABLE_DATE,
                     "summary": {"type": "string"},
                 },
-                "required": ["id", "tag_id", "score", "sentiment", "impact", "affects", "deadline", "summary"],
+                "required": ["id", "tag_id", "score", "sentiment", "impact", "affects", "area", "reason", "deadline", "summary"],
                 "additionalProperties": False,
             },
         }
@@ -135,12 +138,21 @@ def dismissed_examples(session: Session, limit: int = 20) -> str:
     return "\n".join(f"- {title}" for title in rows) or "(chưa có)"
 
 
+def classify_schema(config: RadarConfig) -> dict[str, Any]:
+    """CLASSIFY_SCHEMA with area limited to the ids in impact_areas.txt."""
+    schema = json.loads(json.dumps(CLASSIFY_SCHEMA))
+    if config.areas:
+        schema["properties"]["results"]["items"]["properties"]["area"] = {"type": "string", "enum": [a.id for a in config.areas]}
+    return schema
+
+
 def build_spec(session: Session, config: RadarConfig, tags: list[AITag], items: list[Item]) -> CallSpec:
     names = {s.id: (s.name, s.kind) for s in session.scalars(select(Source))}
     prompt = load_prompt(
         "classify",
         interests=config.interests,
         tags=render_tags(tags),
+        areas=render_areas(config.areas),
         dismissed=dismissed_examples(session),
         count=len(items),
         items=render_items(items, names, int(config.ai.get("content_chars", 500))),
@@ -149,7 +161,7 @@ def build_spec(session: Session, config: RadarConfig, tags: list[AITag], items: 
         "classify",
         prompt.system,
         prompt.user,
-        CLASSIFY_SCHEMA,
+        classify_schema(config),
         effort=config.ai.get("classify_effort", "low"),
         max_tokens=16000,
     )
@@ -189,9 +201,23 @@ def apply_results(
             best[item_id] = {**row, "score": score}
 
     prompt_hash = config.interests_hash
+    areas = {a.id: a for a in config.areas}
     matched = 0
     for item in items:
         result = best.get(item.id)
+        if result is None and item.source is not None and item.source.kind == "platform":
+            # Official changes must come back with an area and a reason; one that did not is
+            # left unanalyzed (still shown) and sent again next run rather than silently dropped.
+            log.warning("Claude did not return platform item %s; will retry", item.id)
+            continue
+        if result is not None:
+            area = areas.get(str(result.get("area") or ""))
+            if area is not None and not area.relevant:
+                # Not about themes: kept with its reason, below the match threshold, no audience or impact.
+                result = {**result, "score": min(result["score"], 0.2), "affects": [], "impact": None}
+            elif area is not None and not result.get("affects"):
+                result = {**result, "affects": [area.group]}
+            result["area"] = area.id if area else None
         for old in list(item.results):
             if old.status == "active":
                 item.results.remove(old)  # delete-orphan removes the row
@@ -206,6 +232,8 @@ def apply_results(
                     sentiment=result.get("sentiment") if result.get("sentiment") in ("neg", "neu", "pos") else "neu",
                     impact=impact,
                     affects=affects_value(result.get("affects")),
+                    area=result.get("area"),
+                    reason=str(result.get("reason") or "").strip()[:500],
                     deadline=_parse_deadline(result.get("deadline")),
                 )
             )
