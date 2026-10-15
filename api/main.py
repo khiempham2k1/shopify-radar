@@ -183,8 +183,11 @@ def analyzed_ids(session: Session, ids: list[int]) -> set[int]:
 
 
 @app.get("/api/health")
-def health() -> dict[str, bool]:
-    return {"ok": True}
+def health() -> dict[str, Any]:
+    """Liveness plus which database the API reads (password hidden) and how much is in it."""
+    from radar.db import db_status
+
+    return {"ok": True, **db_status()}
 
 
 @app.get("/api/me")

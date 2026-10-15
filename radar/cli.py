@@ -6,6 +6,7 @@
     radar classify           classify pending items only
     radar videos             process the video queue only
     radar score              recompute scores
+    radar status             which database is used and how many items it holds
     radar report             write last week's report now
     radar doctor [--network] check tools, logins and keys
     radar scheduler          run forever on the cron in sources.yaml
@@ -71,6 +72,12 @@ def cmd_videos(_: argparse.Namespace) -> None:
         _print(process_videos(session, config, make_claude(session, config)))
 
 
+def cmd_status(_: argparse.Namespace) -> None:
+    from radar.db import db_status
+
+    _print(db_status())
+
+
 def cmd_score(_: argparse.Namespace) -> None:
     from radar.config_loader import load_config
     from radar.scoring import rescore
@@ -125,6 +132,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("classify").set_defaults(func=cmd_classify)
     sub.add_parser("videos").set_defaults(func=cmd_videos)
     sub.add_parser("score").set_defaults(func=cmd_score)
+    sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("report").set_defaults(func=cmd_report)
     doctor = sub.add_parser("doctor")
     doctor.add_argument("--network", action="store_true", help="kiểm tra cả kết nối tới Jina, Exa, Groq")

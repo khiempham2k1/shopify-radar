@@ -100,3 +100,24 @@ def ensure_schema(url: str | None = None) -> None:
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(ROOT / "migrations"))
     command.stamp(cfg, "head")
+
+
+def db_status(url: str | None = None) -> dict:
+    """Where the data lives and how much is there, to compare the API with the CLI."""
+    from sqlalchemy import func, select
+
+    from radar.models import AIResult, CrawlRun, Item
+
+    out: dict = {"db": describe_url(url), "schema": has_schema(url)}
+    if url is None:
+        settings_url = get_settings().database_url
+        if settings_url.startswith("sqlite:///"):
+            out["file"] = str(Path(settings_url.removeprefix("sqlite:///")).resolve())
+    if not out["schema"]:
+        return out
+    with session_scope(url) as session:
+        out["items"] = session.scalar(select(func.count()).select_from(Item)) or 0
+        out["ai_matches"] = session.scalar(select(func.count()).select_from(AIResult).where(AIResult.status == "active")) or 0
+        last = session.scalar(select(func.max(CrawlRun.finished_at)))
+        out["last_run"] = last.isoformat() if last else None
+    return out
