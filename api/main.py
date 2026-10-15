@@ -129,6 +129,7 @@ def serialize_item(item: Item, analyzed_ids: set[int], full: bool = False) -> di
         "metrics": item.metrics or {},
         "extra": item.extra or {},
         "keyword_groups": item.keyword_groups or [],
+        "priority": item.priority.split(", ") if item.priority else [],
         "analyzed": item.id in analyzed_ids,
         "tag": {"id": result.tag.id, "name": result.tag.tag} if result else None,
         "relevance": result.score if result else None,
@@ -164,11 +165,13 @@ def item_query():
 
 def visible_clause(min_score: float):
     """Shown on the dashboard: Claude matched it, or Claude has not seen it yet and
-    it passed the keyword filter (the keyword fallback). Platform items always count."""
+    it passed the keyword filter (the keyword fallback). Platform items and
+    priority-topic items always count."""
     matched = select(AIResult.item_id).where(AIResult.status == "active", AIResult.score >= min_score)
     analyzed = select(AIAnalyzed.item_id)
     return or_(
         Item.id.in_(matched),
+        Item.priority.is_not(None),
         and_(Item.id.not_in(analyzed), or_(Item.keyword_matched.is_(True), Source.kind == "platform")),
     )
 
@@ -213,6 +216,7 @@ def list_items(
     impact: Literal["high", "med", "low"] | None = None,
     status: Literal["new", "doing", "done", "dismissed"] | None = None,
     q: str | None = None,
+    priority: bool = False,
     days: int = Query(60, ge=1, le=365),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -247,6 +251,8 @@ def list_items(
         conditions.append(Item.first_seen >= now - timedelta(days=7))
     if source:
         conditions.append(Item.source_id == source)
+    if priority:
+        conditions.append(Item.priority.is_not(None))
     if tag is not None or sentiment or impact:
         sub = select(AIResult.item_id).where(AIResult.status == "active", AIResult.score >= min_score)
         if tag is not None:
@@ -263,7 +269,8 @@ def list_items(
 
     stmt = stmt.where(*conditions)
     total = session.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
-    order = [Item.first_seen.desc()] if view == "platform" else [Item.score.desc(), Item.first_seen.desc()]
+    newest = func.coalesce(Item.published_at, Item.first_seen).desc()
+    order = [newest] if view == "platform" else [Item.score.desc(), newest]
     items = list(session.scalars(stmt.order_by(*order).limit(limit).offset(offset)).unique())
     done = analyzed_ids(session, [i.id for i in items])
     return {"items": [serialize_item(i, done) for i in items], "total": total or 0}
@@ -331,6 +338,22 @@ def todo_items(session: Session, min_score: float, todo_threshold: float, limit:
     return (changes + feed)[:limit]
 
 
+def priority_items(session: Session, days: int = 30, limit: int = 12) -> list[Item]:
+    """Newest items on a priority topic (config/priorities.txt), not dismissed."""
+    stmt = (
+        item_query()
+        .outerjoin(ItemStatus, ItemStatus.item_id == Item.id)
+        .where(
+            Item.priority.is_not(None),
+            Item.last_seen >= utcnow() - timedelta(days=days),
+            or_(ItemStatus.status.is_(None), ItemStatus.status != "dismissed"),
+        )
+        .order_by(func.coalesce(Item.published_at, Item.first_seen).desc())
+        .limit(limit)
+    )
+    return list(session.scalars(stmt).unique())
+
+
 @app.get("/api/overview")
 def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
     config = load_config(session)
@@ -385,13 +408,14 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         return round(counts.get("neg", 0) / total, 3) if total else None
 
     todo = todo_items(session, min_score, float(config.scoring.get("todo_threshold", 7.0)))
+    priority = priority_items(session)
     deadlines = [
         r.deadline
         for i in todo
         if (r := best_result(i)) is not None and r.deadline is not None and (r.deadline - today).days <= 90
     ]
     last_run = session.scalar(select(CrawlRun).where(CrawlRun.finished_at.is_not(None)).order_by(CrawlRun.finished_at.desc()).limit(1))
-    done = analyzed_ids(session, [i.id for i in todo])
+    done = analyzed_ids(session, [i.id for i in todo + priority])
     return {
         "kpis": {
             "new_7d": new_7d,
@@ -406,6 +430,7 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         "daily": series,
         "topics": topics,
         "todo": [serialize_item(i, done) for i in todo],
+        "priority": {"topics": [t.name for t in config.priorities], "items": [serialize_item(i, done) for i in priority]},
         "last_run": iso(last_run.finished_at) if last_run else None,
         "schedule": config.schedule.get("collect", ""),
     }

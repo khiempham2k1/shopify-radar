@@ -75,9 +75,10 @@ def candidates(session: Session, config: RadarConfig) -> list[Item]:
         .where(
             Item.media_type == "video",
             retry_ok,
-            or_(best_score >= min_score, (~analyzed) & Item.keyword_matched.is_(True)),
+            or_(best_score >= min_score, (~analyzed) & Item.keyword_matched.is_(True), Item.priority.is_not(None)),
         )
-        .order_by(Item.first_seen.desc())
+        # Priority-topic videos first, then the newest.
+        .order_by(Item.priority.is_(None), Item.first_seen.desc())
         .limit(limit)
     )
     return list(session.scalars(stmt))

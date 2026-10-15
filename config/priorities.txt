@@ -1,0 +1,10 @@
+# Chủ đề ưu tiên: radar luôn tìm riêng, luôn hiển thị và đẩy lên đầu.
+#
+# Mỗi dòng một chủ đề. Từ đầu tiên là tên chủ đề, cũng là từ khóa được tìm
+# thêm trên Reddit, X, YouTube, web search và Hacker News.
+# Các cách viết khác ngăn bằng dấu |, đặt trong /.../ để dùng regex.
+#
+# Ví dụ:
+#   Shopify Canvas | Canvas editor | /canvas\s+(app|api|block)s?/
+
+Shopify Canvas

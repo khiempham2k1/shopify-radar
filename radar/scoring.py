@@ -5,7 +5,11 @@
 - relevance: best active AI score (0..1). Items only matched by keywords get 0.4.
 - engagement: log-scaled upvotes/likes/comments/views, capped at 1.
 - cross_source: how many other sources carried a similar title in the last 72 h (0..1).
-- recency: exponential decay with a configurable half-life.
+- recency: exponential decay with a configurable half-life, counted from the
+  publish date when the source gives one (otherwise from when radar first saw it).
+
+Items that mention a priority topic (config/priorities.txt) get
+scoring.priority_boost added on top, capped at 10.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from radar.config_loader import RadarConfig
 from radar.models import AIAnalyzed, AIResult, Item
+from radar.priority import priority_value
 
 STOPWORDS = {
     "the", "a", "an", "and", "or", "for", "to", "of", "in", "on", "with", "is", "are", "how", "what",
@@ -49,10 +54,11 @@ def engagement(metrics: dict[str, Any]) -> float:
     return min(1.0, math.log10(1 + weighted) / 3)  # ~1000 weighted interactions → 1.0
 
 
-def recency(first_seen: datetime, now: datetime, half_life_hours: float) -> float:
-    if first_seen.tzinfo is None:
-        first_seen = first_seen.replace(tzinfo=timezone.utc)
-    age_hours = max(0.0, (now - first_seen).total_seconds() / 3600)
+def recency(first_seen: datetime, now: datetime, half_life_hours: float, published_at: datetime | None = None) -> float:
+    start = _aware(first_seen)
+    if published_at is not None:
+        start = min(start, _aware(published_at))
+    age_hours = max(0.0, (now - start).total_seconds() / 3600)
     return 0.5 ** (age_hours / half_life_hours)
 
 
@@ -72,6 +78,7 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
     weights = config.scoring.get("weights") or {}
     half_life = float(config.scoring.get("recency_half_life_hours", 48))
     min_score = float(config.ai.get("min_score", 0.5))
+    boost = float(config.scoring.get("priority_boost", 2.0))
     since = now - timedelta(days=days)
     items = list(session.scalars(select(Item).where(Item.last_seen >= since)))
     best = dict(
@@ -86,6 +93,10 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
     recent_items = [i for i in items if _aware(i.first_seen) >= window]
 
     for item in items:
+        # Recomputed every run so edits to priorities.txt apply to recent items too.
+        item.priority = priority_value(config.priorities, f"{item.title}\n{item.summary}\n{item.content}")
+        if item.priority:
+            item.keyword_matched = True  # so Claude classifies it even if no keyword group matched
         if item.id in best:
             relevance = float(best[item.id])
             relevance = relevance if relevance >= min_score else relevance * 0.5
@@ -99,7 +110,8 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
             if other.source_id != item.source_id and similar(tokens[item.id], tokens[other.id])
         }
         cross = min(1.0, len(others) / 3)
-        item.score = compute_score(relevance, engagement(item.metrics or {}), cross, recency(item.first_seen, now, half_life), weights)
+        score = compute_score(relevance, engagement(item.metrics or {}), cross, recency(item.first_seen, now, half_life, item.published_at), weights)
+        item.score = min(10.0, round(score + boost, 2)) if item.priority else score
     session.flush()
     return len(items)
 

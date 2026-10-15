@@ -85,7 +85,7 @@ def test_reports(client):
 
 def test_settings_validation_save_and_reset(client):
     files = {f["name"]: f for f in client.get("/api/settings").json()}
-    assert set(files) == {"sources.yaml", "keywords.txt", "interests.txt", "terms.txt"}
+    assert set(files) == {"sources.yaml", "keywords.txt", "priorities.txt", "interests.txt", "terms.txt"}
     assert files["keywords.txt"]["origin"] == "file"
     bad = client.put("/api/settings/keywords.txt", json={"value": "[G]\n/(bad/\n"})
     assert bad.status_code == 400 and "Regex" in bad.json()["detail"]
@@ -103,3 +103,13 @@ def test_usage(client):
     tasks = {t["task"] for t in data["by_task"]}
     assert {"classify", "summarize", "report"} <= tasks
     assert data["groq"]["videos"] == 1
+
+
+def test_priority_items_on_overview_and_filter(client):
+    data = client.get("/api/overview").json()
+    assert data["priority"]["topics"] == ["Shopify Canvas"]
+    assert [i["priority"] for i in data["priority"]["items"]] == [["Shopify Canvas"]]
+    only = client.get("/api/items", params={"view": "feed", "priority": "true"}).json()["items"]
+    assert len(only) == 1 and "Shopify Canvas" in only[0]["title"]
+    # Low AI score (0.45 < min_score) but still listed, and boosted above plain items with similar relevance.
+    assert only[0]["relevance"] < 0.5

@@ -3,6 +3,11 @@
 Items are unique by (source, url). Seeing an item again bumps last_seen and
 seen_count and appends its metrics to item_metrics_history (TrendRadar's
 rank_history idea). Each source run writes one source_status row.
+
+Only fresh items are stored: anything published longer ago than the source's
+max_age_days is skipped, so a search that surfaces a three-year-old video does
+not bring it into the dashboard. Priority topics (config/priorities.txt) are
+added to every source's search queries and always pass the keyword filter.
 """
 
 from __future__ import annotations
@@ -12,7 +17,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from radar.collectors import CollectedItem, Http, make_collector
@@ -20,13 +25,18 @@ from radar.collectors.web import WebSearchCollector
 from radar.config_loader import RadarConfig
 from radar.filter.keywords import KeywordConfig
 from radar.models import (
+    AIAnalyzed,
+    AIResult,
     CrawlRun,
     Item,
     ItemMetricsHistory,
+    ItemStatus,
+    ItemTranscript,
     Source,
     SourceStatus,
     utcnow,
 )
+from radar.priority import PriorityTopic, priority_value
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +46,7 @@ class IngestStats:
     new: int = 0
     seen: int = 0
     blocked: int = 0
+    too_old: int = 0
 
 
 def sync_sources(session: Session, config: RadarConfig) -> None:
@@ -67,13 +78,20 @@ def store_items(
     collected: list[CollectedItem],
     keywords: KeywordConfig,
     now: datetime | None = None,
+    max_age_days: int = 0,
+    priorities: list[PriorityTopic] | None = None,
 ) -> IngestStats:
     now = now or utcnow()
     stats = IngestStats()
     source = session.get(Source, source_id)
+    source_config = (source.config or {}) if source else {}
     # keyword_filter: false lets every item of a source through to Claude (useful for
     # YouTube, where the title alone says little until the video has been listened to).
-    use_keywords = bool((source.config or {}).get("keyword_filter", True)) if source else True
+    use_keywords = bool(source_config.get("keyword_filter", True))
+    # drop_undated: true skips items without a publish date (search results that
+    # could be years old), only when a max age is set.
+    drop_undated = bool(source_config.get("drop_undated", False)) and max_age_days > 0
+    cutoff = now - timedelta(days=max_age_days) if max_age_days > 0 else None
     unique: dict[str, CollectedItem] = {}
     for item in collected:
         if item.url and item.title:
@@ -88,7 +106,14 @@ def store_items(
         text = f"{data.title}\n{data.content}"
         row = existing.get(url)
         if row is None:
-            if keywords.is_blocked(text):
+            if cutoff is not None and (
+                (data.published_at is not None and _aware(data.published_at) < cutoff)
+                or (data.published_at is None and drop_undated)
+            ):
+                stats.too_old += 1
+                continue
+            priority = priority_value(priorities or [], text)
+            if keywords.is_blocked(text) and not priority:
                 stats.blocked += 1
                 continue
             groups = keywords.match(text)
@@ -106,7 +131,8 @@ def store_items(
                 metrics=data.metrics,
                 extra=data.extra,
                 keyword_groups=groups,
-                keyword_matched=bool(groups) or keywords.empty or not use_keywords,
+                keyword_matched=bool(groups) or bool(priority) or keywords.empty or not use_keywords,
+                priority=priority,
             )
             session.add(row)
             session.flush()
@@ -118,6 +144,8 @@ def store_items(
                 row.metrics = {**(row.metrics or {}), **data.metrics}
             if data.content and not row.content:
                 row.content = data.content
+            if data.published_at and not row.published_at:
+                row.published_at = data.published_at
             stats.seen += 1
         if data.metrics:
             session.add(ItemMetricsHistory(item_id=row.id, captured_at=now, metrics=data.metrics))
@@ -140,6 +168,8 @@ def collect_all(
         if only and source["id"] not in only:
             continue
         started = time.monotonic()
+        max_age = config.max_age_days(source)
+        source = with_priority_queries({**source, "max_age_days": max_age}, config.priorities)
         collector = make_collector(source, http)
         result = collector.collect()
         if isinstance(collector, WebSearchCollector):
@@ -147,12 +177,17 @@ def collect_all(
                 collector.enrich(item)
         for item in result.items:
             item.media_type = item.media_type or source.get("media_type", "post")
-        stats = store_items(session, source["id"], result.items, config.keywords)
+        stats = store_items(session, source["id"], result.items, config.keywords, max_age_days=max_age, priorities=config.priorities)
         run.items_new += stats.new
         run.items_seen += stats.seen
         message = result.message
         if result.status != "error":
-            message = (f"{stats.new} mới, {stats.seen} đã có" + (f", {stats.blocked} bị loại" if stats.blocked else "") + (f". {message}" if message else ""))
+            message = (
+                f"{stats.new} mới, {stats.seen} đã có"
+                + (f", {stats.blocked} bị loại" if stats.blocked else "")
+                + (f", {stats.too_old} quá {max_age} ngày nên bỏ qua" if stats.too_old else "")
+                + (f". {message}" if message else "")
+            )
         session.add(
             SourceStatus(
                 crawl_run_id=run.id,
@@ -169,6 +204,49 @@ def collect_all(
     run.finished_at = utcnow()
     session.commit()
     return run
+
+
+def with_priority_queries(source: dict, priorities: list[PriorityTopic]) -> dict:
+    """Search priority topics too on sources that take queries (priority_search: false opts out)."""
+    if not priorities or "queries" not in source or not source.get("priority_search", True):
+        return source
+    queries = list(source.get("queries") or [])
+    known = {q.strip().strip('"').lower() for q in queries}
+    extra = [t.query for t in priorities if t.query.lower() not in known]
+    return {**source, "queries": queries + extra} if extra else source
+
+
+def prune_stale(session: Session, config: RadarConfig, now: datetime | None = None) -> int:
+    """Remove items published before their source's max age (or undated, where the
+    source drops undated items) that nobody has picked up. Cleans what older runs
+    stored before the age filter existed."""
+    now = now or utcnow()
+    handled = select(ItemStatus.item_id).where(ItemStatus.status.in_(["doing", "done"]))
+    removed = 0
+    for source in config.sources:
+        days = config.max_age_days(source)
+        if days <= 0:
+            continue
+        stale = Item.published_at < now - timedelta(days=days)
+        if source.get("drop_undated"):
+            stale = or_(stale, Item.published_at.is_(None))
+        ids = list(session.scalars(select(Item.id).where(Item.source_id == source["id"], stale, Item.id.not_in(handled))))
+        if ids:
+            delete_items(session, ids)
+            removed += len(ids)
+    return removed
+
+
+def delete_items(session: Session, ids: list[int]) -> None:
+    """Delete items and their child rows explicitly: SQLite does not enforce ON DELETE CASCADE."""
+    for model in (ItemMetricsHistory, AIResult, AIAnalyzed, ItemStatus, ItemTranscript):
+        session.execute(delete(model).where(model.item_id.in_(ids)).execution_options(synchronize_session=False))
+    session.execute(delete(Item).where(Item.id.in_(ids)).execution_options(synchronize_session=False))
+    session.expire_all()
+
+
+def _aware(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
 def prune_old(session: Session, retention_days: int) -> int:

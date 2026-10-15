@@ -43,6 +43,18 @@ function usePatchItem() {
   };
 }
 
+export function PriorityTags({ item }: { item: Item }) {
+  return (
+    <>
+      {item.priority.map((p) => (
+        <span key={p} className="tag prio" title="Chủ đề ưu tiên (priorities.txt)">
+          ★ {p}
+        </span>
+      ))}
+    </>
+  );
+}
+
 export function PlatformRow({ item, compact = false, onChange }: { item: Item; compact?: boolean; onChange?: (updated: Item) => void }) {
   const toast = useToast();
   const { email } = useUser();
@@ -82,6 +94,7 @@ export function PlatformRow({ item, compact = false, onChange }: { item: Item; c
           <External href={item.url}>{item.title}</External>
         </div>
         <div className="m">
+          <PriorityTags item={item} />
           <span className="src">{item.source.name}</span>
           {date && <span title={fmtDateTime(date)}>{fmtDayMonth(date)}</span>}
           {item.tag && <span className="tag">{item.tag.name}</span>}
@@ -186,6 +199,7 @@ export function FeedRow({ item, compact = false, onDismiss }: { item: Item; comp
           <External href={item.url}>{item.title}</External>
         </div>
         <div className="m">
+          <PriorityTags item={item} />
           <span className="src">{item.source.name}</span>
           {date && <span title={fmtDateTime(date)}>{timeAgo(date)}</span>}
           {isVideo(item) && duration ? <span className="mono">{fmtClock(duration)}</span> : null}

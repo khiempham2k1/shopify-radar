@@ -93,7 +93,7 @@ def pending_items(session: Session, config: RadarConfig) -> list[Item]:
             Item.id.not_in(dismissed),
             or_(Item.keyword_matched.is_(True), Source.kind == "platform", Item.id.in_(transcribed)),
         )
-        .order_by(Item.first_seen.desc())
+        .order_by(Item.priority.is_(None), Item.first_seen.desc())
         .limit(limit)
     )
     return list(session.scalars(stmt))

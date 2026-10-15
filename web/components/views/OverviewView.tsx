@@ -90,11 +90,42 @@ function Topics({ topics }: { topics: Overview["topics"] }) {
   );
 }
 
+function Priority({ data, onChange }: { data: Overview["priority"]; onChange: (updated: Item) => void }) {
+  if (data.topics.length === 0) return null;
+  return (
+    <div className="panel">
+      <h2>Chủ đề ưu tiên</h2>
+      <p className="sub">Cập nhật mới nhất về các chủ đề trong priorities.txt (sửa ở trang Cài đặt), 30 ngày qua</p>
+      <div className="prio-topics">
+        {data.topics.map((t) => (
+          <span key={t} className="tag prio">
+            ★ {t}
+          </span>
+        ))}
+      </div>
+      {data.items.length === 0 ? (
+        <Empty>Chưa có cập nhật nào về các chủ đề này trong 30 ngày qua.</Empty>
+      ) : (
+        <div className="list">
+          {data.items.map((item) =>
+            item.source.kind === "platform" ? (
+              <PlatformRow key={item.id} item={item} compact onChange={onChange} />
+            ) : (
+              <FeedRow key={item.id} item={item} compact />
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function OverviewView() {
   const { data, error, loading, reload, setData } = useApi<Overview>("overview");
 
   const replaceTodo = (updated: Item) => {
-    setData((d) => (d ? { ...d, todo: d.todo.map((i) => (i.id === updated.id ? updated : i)) } : d));
+    const swap = (list: Item[]) => list.map((i) => (i.id === updated.id ? updated : i));
+    setData((d) => (d ? { ...d, todo: swap(d.todo), priority: { ...d.priority, items: swap(d.priority.items) } } : d));
     reload({ silent: true });
   };
 
@@ -127,6 +158,7 @@ export function OverviewView() {
       {data && (
         <>
           <Kpis k={data.kpis} />
+          {data.priority && <Priority data={data.priority} onChange={replaceTodo} />}
           <div className="grid-2">
             <div className="panel">
               <h2>Item mới theo ngày</h2>

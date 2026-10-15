@@ -66,6 +66,8 @@ FEED = [
     ("twitter", "Shopify merchants keep asking for mega menus with images on mobile", "Yêu cầu mega menu có ảnh trên mobile lặp lại nhiều lần trong tuần.", 5, "neu", 0.74, {"likes": 210, "retweets": 31, "comments": 18}, 30),
     ("reddit", "Moving from WooCommerce to Shopify: which theme handles 5k SKUs with filters?", "Merchant cần theme chịu được 5.000+ SKU với bộ lọc nhiều tầng.", 5, "neu", 0.7, {"upvotes": 37, "comments": 29}, 50),
     ("hackernews", "Show HN: Open-source Liquid linter with auto-fix", "Công cụ lint Liquid mã nguồn mở, tự sửa lỗi phổ biến; dùng được trong CI.", 3, "pos", 0.62, {"points": 214, "comments": 66}, 110),
+    # Priority topic (config/priorities.txt): shown at the top even with a low AI score.
+    ("reddit", "Anyone tried Shopify Canvas for theme work yet?", "Dev hỏi cách dùng Shopify Canvas với theme hiện có; chưa có câu trả lời chính thức.", 3, "neu", 0.45, {"upvotes": 12, "comments": 9}, 8),
     ("youtube", "Shopify theme speed optimization: 5 fixes that actually work", "Năm cách tăng tốc theme: image_url đúng kích thước, lazy load section, hoãn script app.", 4, "neu", 0.66, {"views": 12900}, 140),
 ]
 

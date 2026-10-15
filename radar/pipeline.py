@@ -13,7 +13,7 @@ from radar.ai.client import ClaudeClient
 from radar.ai.insights import build_report
 from radar.config_loader import RadarConfig, load_config
 from radar.doctor import login_checks, save_login_status
-from radar.ingest import collect_all, prune_old
+from radar.ingest import collect_all, prune_old, prune_stale
 from radar.models import Report
 from radar.scoring import rescore
 from radar.transcribe.queue import VideoStats, process_videos
@@ -30,6 +30,7 @@ class RunSummary:
     reclassify: ClassifyStats | None = None
     scored: int = 0
     pruned: int = 0
+    stale_removed: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -50,6 +51,9 @@ def run_once(session: Session, only: list[str] | None = None, claude_client: Any
         save_login_status(session, login_checks(config))
         run = collect_all(session, config, only=only)
         summary.items_new, summary.items_seen = run.items_new, run.items_seen
+    # Drop stale items before they cost a Claude call or a Groq transcription.
+    summary.stale_removed = prune_stale(session, config)
+    session.commit()
 
     claude = make_claude(session, config, claude_client)
     try:

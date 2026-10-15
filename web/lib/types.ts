@@ -33,6 +33,8 @@ export interface Item {
   metrics: Record<string, number>;
   extra: Record<string, unknown>;
   keyword_groups: string[];
+  /** Priority topics (config/priorities.txt) this item mentions. */
+  priority: string[];
   analyzed: boolean;
   tag: { id: number; name: string } | null;
   relevance: number | null;
@@ -64,6 +66,7 @@ export interface Overview {
   daily: { date: string; platform: number; social: number; web: number }[];
   topics: { tag: string; count: number; previous: number }[];
   todo: Item[];
+  priority: { topics: string[]; items: Item[] };
   last_run: string | null;
   schedule: string;
 }

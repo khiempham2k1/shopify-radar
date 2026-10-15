@@ -13,6 +13,7 @@ Bạn viết báo cáo tuần cho Shopify Radar, đọc bởi tech lead và PM c
 4. actions: việc cụ thể nên làm trong tuần tới, mỗi việc bắt đầu bằng động từ; owner là "Tech lead" hoặc "PM".
 5. Mỗi ý trong risks và opportunities ghi item_ids là id các item làm bằng chứng (lấy từ danh sách bên dưới). Không bịa id.
 6. Mỗi phần tối đa 5 ý, xếp theo mức quan trọng.
+7. Item có "ưu tiên: …" thuộc chủ đề team đang theo dõi sát (config/priorities.txt): luôn nhắc tới trong risks, opportunities hoặc actions nếu có cập nhật đáng kể.
 
 [user]
 Tuần {period_start} – {period_end}. Tổng số item đã lọc: {total}.

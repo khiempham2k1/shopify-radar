@@ -60,16 +60,32 @@ def has_schema(url: str | None = None) -> bool:
     return inspect(get_engine(url)).has_table("settings")
 
 
-def migrate() -> None:
-    """Apply Alembic migrations to DATABASE_URL (same as `radar migrate`)."""
-    from alembic import command
+def _alembic_config():
     from alembic.config import Config
 
     from radar.settings import ROOT
 
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(ROOT / "migrations"))
-    command.upgrade(cfg, "head")
+    return cfg
+
+
+def migrate() -> None:
+    """Apply Alembic migrations to DATABASE_URL (same as `radar migrate`)."""
+    from alembic import command
+
+    command.upgrade(_alembic_config(), "head")
+
+
+def at_head(url: str | None = None) -> bool:
+    """True when the database has every migration in migrations/versions."""
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    heads = set(ScriptDirectory.from_config(_alembic_config()).get_heads())
+    with get_engine(url).connect() as conn:
+        current = set(MigrationContext.configure(conn).get_current_heads())
+    return current == heads
 
 
 def ensure_schema(url: str | None = None) -> None:
@@ -84,22 +100,21 @@ def ensure_schema(url: str | None = None) -> None:
 
     log = logging.getLogger(__name__)
     if has_schema(url):
+        if url is None and not at_head():
+            log.warning("DB %s chưa cập nhật migration mới, đang chạy migration…", describe_url())
+            migrate()
         return
     log.warning("DB %s chưa có bảng, đang chạy migration…", describe_url(url))
     migrate()
     if has_schema(url):
         return
     from alembic import command
-    from alembic.config import Config
 
     from radar.models import Base
-    from radar.settings import ROOT
 
     log.warning("Migration không tạo được bảng, tạo trực tiếp từ models")
     Base.metadata.create_all(get_engine(url))
-    cfg = Config(str(ROOT / "alembic.ini"))
-    cfg.set_main_option("script_location", str(ROOT / "migrations"))
-    command.stamp(cfg, "head")
+    command.stamp(_alembic_config(), "head")
 
 
 def db_status(url: str | None = None) -> dict:

@@ -150,7 +150,17 @@ class YouTubeCollector(Collector):
     def fetch_yt_dlp(self) -> list[CollectedItem]:
         import yt_dlp
 
-        options = {"quiet": True, "no_warnings": True, "js_runtimes": {"deno": {}, "node": {}}, "skip_download": True, "extract_flat": "in_playlist", "playlistend": self.limit}
+        options = {
+            "quiet": True,
+            "no_warnings": True,
+            "js_runtimes": {"deno": {}, "node": {}},
+            "skip_download": True,
+            "extract_flat": "in_playlist",
+            "playlistend": self.limit,
+            # Search results only say "3 years ago"; this turns it into a timestamp
+            # so ingest can drop old videos before they are listened to.
+            "extractor_args": {"youtubetab": {"approximate_date": [""]}},
+        }
         items: list[CollectedItem] = []
         try:
             with yt_dlp.YoutubeDL(options) as ydl:

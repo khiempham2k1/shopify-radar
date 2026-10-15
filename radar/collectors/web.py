@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from urllib.parse import quote_plus
 
 from radar.collectors import exa
@@ -51,9 +52,13 @@ class HackerNewsCollector(Collector):
 
     def fetch_algolia(self) -> list[CollectedItem]:
         items: list[CollectedItem] = []
+        since = ""
+        if int(self.source.get("max_age_days") or 0) > 0:
+            cutoff = int(time.time()) - int(self.source["max_age_days"]) * 86400
+            since = f"&numericFilters=created_at_i>{cutoff}"
         for query in self.source.get("queries", ["shopify"]):
             data = self.http.get_json(
-                f"https://hn.algolia.com/api/v1/search_by_date?query={quote_plus(query)}&tags=story&hitsPerPage={self.limit}"
+                f"https://hn.algolia.com/api/v1/search_by_date?query={quote_plus(query)}&tags=story&hitsPerPage={self.limit}{since}"
             )
             for hit in data.get("hits", []):
                 object_id = hit.get("objectID")

@@ -7,7 +7,7 @@ Kế hoạch và các quyết định: [`docs/PLAN.md`](docs/PLAN.md).
 ## Cách hoạt động
 
 ```
-config/ (sources.yaml, keywords.txt, interests.txt, terms.txt, prompts/)
+config/ (sources.yaml, keywords.txt, priorities.txt, interests.txt, terms.txt, prompts/)
         │
 radar/collectors (cron) ──▶ Postgres ◀── radar/ai (Claude: tag, phân loại, tóm tắt, báo cáo tuần)
  rss, github, editions,         │  ▲
@@ -19,11 +19,13 @@ radar/collectors (cron) ──▶ Postgres ◀── radar/ai (Claude: tag, phâ
 Mỗi lần chạy (mặc định mỗi 2 giờ, xem `schedule.collect` trong `config/sources.yaml`):
 
 1. **Thu thập.** Mỗi nguồn có danh sách công cụ theo thứ tự ưu tiên, theo cách của [Agent Reach](https://github.com/Panniantong/agent-reach): Exa MCP cho web search, Jina Reader để đọc trang, `yt-dlp` cho YouTube, `rdt-cli` cho Reddit (dự phòng bằng Exa), `twitter-cli` cho X. Công cụ chính lỗi thì chuyển sang công cụ dự phòng và báo trên trang Sức khỏe nguồn.
-2. **Lọc từ khóa** theo cú pháp của TrendRadar (`config/keywords.txt`). Item của nguồn nền tảng luôn được gửi cho Claude.
-3. **Claude phân loại** theo lô (`claude-opus-5-5`, effort `low`). Kết quả gồm tag lấy từ `interests.txt`, điểm liên quan, cảm xúc, mức ảnh hưởng, hạn chót và tóm tắt tiếng Việt. Mỗi item chỉ gửi một lần. Lô nào lỗi thì item vẫn hiển thị nhờ khớp từ khóa và được gửi lại ở lần chạy sau.
-4. **Video YouTube** lấy phụ đề trước. Không có phụ đề mới dùng Groq Whisper. Claude tóm tắt (effort `medium`), bản tóm tắt thay cho nội dung item, rồi item được phân loại lại.
-5. **Chấm điểm** 0–10 dựa trên mức liên quan, tương tác, số nguồn cùng nhắc và độ mới.
-6. **Báo cáo tuần** chạy sáng thứ Hai (effort `high`).
+2. **Chỉ giữ thông tin mới.** Bài/video đăng trước `freshness.max_age_days` (mặc định 30 ngày, từng nguồn đặt riêng được) bị bỏ ngay khi thu thập. Item cũ đã lưu từ trước bị xóa ở lần chạy sau, trừ item đang có người xử lý. YouTube và web search bỏ cả kết quả không rõ ngày đăng (`drop_undated`).
+3. **Chủ đề ưu tiên** (`config/priorities.txt`, ví dụ `Shopify Canvas`). Mỗi chủ đề được tìm thêm trên mọi nguồn có `queries`. Item nhắc tới chủ đề luôn hiển thị, được cộng `scoring.priority_boost` điểm, có nhãn ★, đứng đầu trang Tổng quan và luôn có trong báo cáo tuần.
+4. **Lọc từ khóa** theo cú pháp của TrendRadar (`config/keywords.txt`). Item của nguồn nền tảng luôn được gửi cho Claude.
+5. **Claude phân loại** theo lô (`claude-opus-5-5`, effort `low`). Kết quả gồm tag lấy từ `interests.txt`, điểm liên quan, cảm xúc, mức ảnh hưởng, hạn chót và tóm tắt tiếng Việt. Mỗi item chỉ gửi một lần. Lô nào lỗi thì item vẫn hiển thị nhờ khớp từ khóa và được gửi lại ở lần chạy sau.
+6. **Video YouTube** lấy phụ đề trước. Không có phụ đề mới dùng Groq Whisper. Claude tóm tắt (effort `medium`), bản tóm tắt thay cho nội dung item, rồi item được phân loại lại.
+7. **Chấm điểm** 0–10 dựa trên mức liên quan, tương tác, số nguồn cùng nhắc và độ mới (tính từ ngày đăng thật).
+8. **Báo cáo tuần** chạy sáng thứ Hai (effort `high`).
 
 ## Chạy trên server nội bộ
 

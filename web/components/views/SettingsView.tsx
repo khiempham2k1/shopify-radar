@@ -21,6 +21,16 @@ function Help({ name }: { name: string }) {
           </span>
         </div>
       );
+    case "priorities.txt":
+      return (
+        <div className="help">
+          <span>
+            Chủ đề cần theo sát, ví dụ <code>Shopify Canvas</code>. Mỗi dòng một chủ đề; từ đầu tiên là tên và được tìm thêm trên Reddit, X, YouTube,
+            web search, Hacker News. Cách viết khác ngăn bằng <code>|</code>, regex đặt trong <code>/.../</code>.
+          </span>
+          <span>Item nhắc tới chủ đề luôn hiển thị, được cộng điểm, có nhãn ★ và đứng đầu trang Tổng quan. Áp dụng từ lần chạy tiếp theo.</span>
+        </div>
+      );
     case "interests.txt":
       return (
         <div className="help">
@@ -33,6 +43,9 @@ function Help({ name }: { name: string }) {
           <span>
             Nguồn thu thập, lịch chạy (<code>schedule</code>), tham số AI, video và trọng số chấm điểm. Mỗi nguồn cần <code>id</code> riêng; sai cú
             pháp YAML sẽ không lưu được.
+          </span>
+          <span>
+            <code>freshness.max_age_days</code> (mặc định 30): bỏ bài/video đăng trước số ngày này; từng nguồn đặt <code>max_age_days</code> riêng được.
           </span>
         </div>
       );

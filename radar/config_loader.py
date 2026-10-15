@@ -16,9 +16,10 @@ from sqlalchemy.orm import Session
 
 from radar.filter.keywords import KeywordConfig, parse_keywords
 from radar.models import Setting
+from radar.priority import PriorityTopic, parse_priorities
 from radar.settings import get_settings
 
-EDITABLE_FILES = ("sources.yaml", "keywords.txt", "interests.txt", "terms.txt")
+EDITABLE_FILES = ("sources.yaml", "keywords.txt", "priorities.txt", "interests.txt", "terms.txt")
 
 
 def read_text(name: str, session: Session | None = None) -> str:
@@ -55,6 +56,8 @@ def validate_text(name: str, value: str) -> None:
             raise ValueError("Có 'id' nguồn bị trùng")
     elif name == "keywords.txt":
         parse_keywords(value)
+    elif name == "priorities.txt":
+        parse_priorities(value)
 
 
 @dataclass
@@ -64,6 +67,7 @@ class RadarConfig:
     interests: str
     terms: str
     sources: list[dict[str, Any]] = field(default_factory=list)
+    priorities: list[PriorityTopic] = field(default_factory=list)
 
     def section(self, name: str) -> dict[str, Any]:
         return self.raw.get(name) or {}
@@ -85,6 +89,14 @@ class RadarConfig:
         return self.section("schedule")
 
     @property
+    def freshness(self) -> dict[str, Any]:
+        return self.section("freshness")
+
+    def max_age_days(self, source: dict[str, Any]) -> int:
+        """Items published longer ago than this are skipped (0 = no limit, default 30)."""
+        return int(source.get("max_age_days", self.freshness.get("max_age_days", 30)) or 0)
+
+    @property
     def model(self) -> str:
         return self.ai.get("model", "claude-opus-5-5")
 
@@ -102,6 +114,7 @@ def load_config(session: Session | None = None) -> RadarConfig:
         interests=read_text("interests.txt", session).strip(),
         terms=read_text("terms.txt", session).strip(),
         sources=sources,
+        priorities=parse_priorities(read_text("priorities.txt", session)),
     )
 
 

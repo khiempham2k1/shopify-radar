@@ -37,6 +37,7 @@ export function FeedView() {
   const [source, setSource] = useState("");
   const [tag, setTag] = useState("");
   const [sentiment, setSentiment] = useState("");
+  const [priorityOnly, setPriorityOnly] = useState(false);
 
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
@@ -51,8 +52,9 @@ export function FeedView() {
     if (source) p.set("source", source);
     if (tag) p.set("tag", tag);
     if (sentiment) p.set("sentiment", sentiment);
+    if (priorityOnly) p.set("priority", "true");
     return p.toString();
-  }, [mode, q, source, tag, sentiment]);
+  }, [mode, q, source, tag, sentiment, priorityOnly]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -114,7 +116,7 @@ export function FeedView() {
   }
 
   const feedSources = (sources.data ?? []).filter((s) => s.kind !== "platform");
-  const filtered = Boolean(q || source || tag || sentiment);
+  const filtered = Boolean(q || source || tag || sentiment || priorityOnly);
   const modeInfo = MODES.find((m) => m.key === mode)!;
 
   return (
@@ -137,6 +139,15 @@ export function FeedView() {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          className="chip"
+          aria-pressed={priorityOnly}
+          title="Chỉ hiện item nhắc tới chủ đề ưu tiên trong priorities.txt"
+          onClick={() => setPriorityOnly((v) => !v)}
+        >
+          ★ Ưu tiên
+        </button>
         <span className="spacer" />
         <input
           className="field search"
