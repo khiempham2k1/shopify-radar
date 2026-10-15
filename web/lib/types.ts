@@ -33,6 +33,8 @@ export interface Item {
   score: number;
   /** 0–10: interaction vs. the same source, decaying with age. The Feed sorts by it. */
   hot: number;
+  /** From Shopify itself (platform source or a Shopify domain); listed first. */
+  official: boolean;
   metrics: Record<string, number>;
   extra: Record<string, unknown>;
   keyword_groups: string[];

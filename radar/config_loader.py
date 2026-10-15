@@ -89,6 +89,10 @@ class RadarConfig:
         return self.section("schedule")
 
     @property
+    def official(self) -> dict[str, Any]:
+        return self.section("official")
+
+    @property
     def freshness(self) -> dict[str, Any]:
         return self.section("freshness")
 

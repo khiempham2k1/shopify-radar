@@ -14,6 +14,7 @@ Bạn viết báo cáo tuần cho Shopify Radar, đọc bởi tech lead và PM c
 5. Mỗi ý trong risks và opportunities ghi item_ids là id các item làm bằng chứng (lấy từ danh sách bên dưới). Không bịa id.
 6. Mỗi phần tối đa 5 ý, xếp theo mức quan trọng.
 7. Item có "ưu tiên: …" thuộc chủ đề team đang theo dõi sát (config/priorities.txt): luôn nhắc tới trong risks, opportunities hoặc actions nếu có cập nhật đáng kể.
+8. Nguồn CHÍNH THỨC (từ Shopify) là căn cứ cho risks và hạn chót; ý từ social chỉ đưa vào khi nhiều người cùng nói, và ghi rõ là phản hồi của cộng đồng. Với mỗi ý, item_ids ưu tiên id của nguồn chính thức nếu có.
 
 [user]
 Tuần {period_start} – {period_end}. Tổng số item đã lọc: {total}.

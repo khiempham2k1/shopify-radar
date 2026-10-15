@@ -140,6 +140,7 @@ def serialize_item(item: Item, analyzed_ids: set[int], full: bool = False) -> di
         "seen_count": item.seen_count,
         "score": item.score,
         "hot": item.hot,
+        "official": item.official,
         "metrics": item.metrics or {},
         "extra": item.extra or {},
         "keyword_groups": item.keyword_groups or [],
@@ -292,7 +293,12 @@ def list_items(
     total = session.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     newest = func.coalesce(Item.published_at, Item.first_seen).desc()
     sort = sort or ("new" if view == "platform" else "hot")
-    order = {"new": [newest], "score": [Item.score.desc(), newest], "hot": [Item.hot.desc(), Item.score.desc(), newest]}[sort]
+    # Shopify's own items come first, then the chosen order.
+    order = {
+        "new": [newest],
+        "score": [Item.official.desc(), Item.score.desc(), newest],
+        "hot": [Item.official.desc(), Item.hot.desc(), Item.score.desc(), newest],
+    }[sort]
     items = list(session.scalars(stmt.order_by(*order).limit(limit).offset(offset)).unique())
     done = analyzed_ids(session, [i.id for i in items])
     return {"items": [serialize_item(i, done) for i in items], "total": total or 0}
@@ -354,7 +360,7 @@ def todo_items(session: Session, min_score: float, todo_threshold: float, limit:
                 visible_clause(min_score),
                 open_status,
                 Item.last_seen >= utcnow() - timedelta(days=7),
-            ).order_by(Item.score.desc())
+            ).order_by(Item.official.desc(), Item.score.desc())
         ).unique()
     )
     return (changes + feed)[:limit]
@@ -370,7 +376,7 @@ def priority_items(session: Session, days: int = 30, limit: int = 12) -> list[It
             Item.last_seen >= utcnow() - timedelta(days=days),
             or_(ItemStatus.status.is_(None), ItemStatus.status != "dismissed"),
         )
-        .order_by(func.coalesce(Item.published_at, Item.first_seen).desc())
+        .order_by(Item.official.desc(), func.coalesce(Item.published_at, Item.first_seen).desc())
         .limit(limit)
     )
     return list(session.scalars(stmt).unique())

@@ -9,7 +9,8 @@
   publish date when the source gives one (otherwise from when radar first saw it).
 
 Items that mention a priority topic (config/priorities.txt) get
-scoring.priority_boost added on top, capped at 10.
+scoring.priority_boost added on top, and items from Shopify itself
+(radar/official.py) get scoring.official_boost, capped at 10.
 
 Hot (0–10), what the Feed sorts by: how much interaction an item got compared
 with other items from the same source (a percentile, so YouTube views do not
@@ -29,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from radar.config_loader import RadarConfig
 from radar.models import AIAnalyzed, AIResult, Item
+from radar.official import is_official
 from radar.priority import priority_value
 
 STOPWORDS = {
@@ -112,6 +114,8 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
     half_life = float(config.scoring.get("recency_half_life_hours", 48))
     min_score = float(config.ai.get("min_score", 0.5))
     boost = float(config.scoring.get("priority_boost", 2.0))
+    official_boost = float(config.scoring.get("official_boost", 1.0))
+    source_configs = {s["id"]: s for s in config.raw.get("sources", [])}
     hot_half_life = float(config.scoring.get("hot_half_life_hours", 24))
     since = now - timedelta(days=days)
     items = list(session.scalars(select(Item).where(Item.last_seen >= since)))
@@ -132,6 +136,7 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
         item.priority = priority_value(config.priorities, f"{item.title}\n{item.summary}\n{item.content}")
         if item.priority:
             item.keyword_matched = True  # so Claude classifies it even if no keyword group matched
+        item.official = is_official(item.url, source_configs.get(item.source_id), config.official)
         if item.id in best:
             relevance = float(best[item.id])
             relevance = relevance if relevance >= min_score else relevance * 0.5
@@ -146,7 +151,8 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
         }
         cross = min(1.0, len(others) / 3)
         score = compute_score(relevance, engagement(item.metrics or {}), cross, recency(item.first_seen, now, half_life, item.published_at), weights)
-        item.score = min(10.0, round(score + boost, 2)) if item.priority else score
+        extra_points = (boost if item.priority else 0.0) + (official_boost if item.official else 0.0)
+        item.score = min(10.0, round(score + extra_points, 2)) if extra_points else score
         # Same story elsewhere: similar titles in other sources, plus merged duplicates (extra.also).
         elsewhere = others | {a.get("source") for a in (item.extra or {}).get("also", []) if a.get("source") != item.source_id}
         started = min(_aware(item.first_seen), _aware(item.published_at)) if item.published_at else item.first_seen

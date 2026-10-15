@@ -188,6 +188,11 @@ export function FeedRow({
           <External href={item.url}>{item.title}</External>
         </div>
         <div className="m">
+          {item.official && (
+            <span className="tag official" title="Nguồn chính thức của Shopify">
+              ✓ Chính thức
+            </span>
+          )}
           <PriorityTags item={item} />
           <span className="src">{item.source.name}</span>
           {date && <span title={fmtDateTime(date)}>{timeAgo(date)}</span>}

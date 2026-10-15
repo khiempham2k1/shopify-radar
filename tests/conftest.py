@@ -20,6 +20,9 @@ def db_url(tmp_path, monkeypatch) -> str:
     (the schema is dropped and recreated for every test)."""
     url = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{tmp_path / 'radar.db'}"
     monkeypatch.setenv("DATABASE_URL", url)
+    from radar.db import get_engine
+
+    get_engine.cache_clear()  # the API resolves DATABASE_URL through this cache; each test has its own DB
     monkeypatch.setenv("RADAR_WORK_DIR", str(tmp_path / "work"))
     monkeypatch.delenv("RADAR_API_TOKEN", raising=False)
     if os.environ.get("TEST_DATABASE_URL"):

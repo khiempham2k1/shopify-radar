@@ -98,7 +98,7 @@ def pending_items(session: Session, config: RadarConfig) -> list[Item]:
             Item.id.not_in(dismissed),
             or_(Item.keyword_matched.is_(True), Source.kind == "platform", Item.id.in_(transcribed)),
         )
-        .order_by(Item.priority.is_(None), Item.first_seen.desc())
+        .order_by(Item.official.desc(), Item.priority.is_(None), Item.first_seen.desc())
         .limit(limit)
     )
     return list(session.scalars(stmt))
@@ -109,7 +109,8 @@ def render_items(items: list[Item], source_names: dict[str, tuple[str, str]], ch
     for item in items:
         name, kind = source_names.get(item.source_id, (item.source_id, ""))
         content = " ".join((item.content or "").split())[:chars]
-        lines = [f"[id={item.id}] nguồn: {name} ({kind}) · loại: {item.media_type}", f"Tiêu đề: {item.title}"]
+        flag = " · CHÍNH THỨC" if item.official else ""
+        lines = [f"[id={item.id}] nguồn: {name} ({kind}){flag} · loại: {item.media_type}", f"Tiêu đề: {item.title}"]
         if content:
             lines.append(f"Nội dung: {content}")
         if item.extra.get("edition"):

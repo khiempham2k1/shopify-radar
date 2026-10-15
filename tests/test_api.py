@@ -132,3 +132,19 @@ def test_public_health_hides_tools_and_config(client):
     admin = {"X-Radar-User": "lead@company.com", "X-Radar-Admin": "1"}
     assert client.get("/api/health/sources", headers=admin).json()["logins"] is not None
     assert "db" in client.get("/api/health", headers=admin).json() and "db" in client.get("/api/health").json()
+
+
+def test_official_items_lead_the_feed(client, db_url):
+    from sqlalchemy import select
+
+    from radar.models import Item
+
+    session = session_factory(db_url)()
+    coldest = session.scalars(select(Item).join(Item.source).where(Item.source.has(kind="web"))).first()
+    coldest.official, coldest.hot = True, 0.0
+    session.commit()
+    session.close()
+    feed = client.get("/api/items", params={"view": "feed"}).json()["items"]
+    assert feed[0]["id"] == coldest.id and feed[0]["official"] is True
+    newest = client.get("/api/items", params={"view": "feed", "sort": "new"}).json()["items"]
+    assert newest[0]["id"] != coldest.id or len(newest) == 1

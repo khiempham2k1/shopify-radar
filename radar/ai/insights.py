@@ -63,7 +63,7 @@ def _matched_items(session: Session, start: datetime, end: datetime, min_score: 
         # Priority-topic items go in even when Claude scored them low.
         .where(Item.first_seen >= start, Item.first_seen < end, or_(Item.id.in_(matched), Item.priority.is_not(None)))
         .options(selectinload(Item.results).selectinload(AIResult.tag))
-        .order_by(Item.score.desc())
+        .order_by(Item.official.desc(), Item.score.desc())
         .distinct()
     )
     return list(session.scalars(stmt).unique())
@@ -96,7 +96,8 @@ def build_report(session: Session, config: RadarConfig, claude: ClaudeClient, to
 
     def line(item: Item) -> str:
         result = max((r for r in item.results if r.status == "active"), key=lambda r: r.score, default=None)
-        parts = [f"[{item.id}] {item.title}", f"nguồn: {names.get(item.source_id, item.source_id)}", f"điểm: {item.score:.1f}"]
+        source = names.get(item.source_id, item.source_id) + (" · CHÍNH THỨC" if item.official else "")
+        parts = [f"[{item.id}] {item.title}", f"nguồn: {source}", f"điểm: {item.score:.1f}"]
         if item.priority:
             parts.append(f"ưu tiên: {item.priority}")
         if result is not None:

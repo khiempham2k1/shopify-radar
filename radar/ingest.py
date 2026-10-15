@@ -22,13 +22,14 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from radar.collectors import CollectedItem, Http, make_collector
 from radar.collectors.web import WebSearchCollector
 from radar.config_loader import RadarConfig
 from radar.dedupe import hashed, item_keys
+from radar.official import is_official, official_first
 from radar.filter.keywords import KeywordConfig
 from radar.models import (
     AIAnalyzed,
@@ -88,6 +89,7 @@ def store_items(
     now: datetime | None = None,
     max_age_days: int = 0,
     priorities: list[PriorityTopic] | None = None,
+    official_settings: dict | None = None,
 ) -> IngestStats:
     now = now or utcnow()
     stats = IngestStats()
@@ -121,13 +123,18 @@ def store_items(
                 stats.too_old += 1
                 continue
             keys = hashed(item_keys(url, data.extra, data.title, data.content, source_config))
+            official = is_official(url, {**source_config, "kind": source.kind if source else ""}, official_settings)
             owner_id = session.scalar(select(ItemKey.item_id).where(ItemKey.key.in_(keys)).limit(1))
             owner = session.get(Item, owner_id) if owner_id is not None else None
+            # The official version of a story always wins: it replaces a copy stored earlier from elsewhere.
+            replaces = owner if owner is not None and official and not owner.official else None
+            if replaces is not None:
+                owner = None
             if owner is not None:
                 attach_duplicate(session, owner, source_id, source.name if source else source_id, data, keys, now)
                 stats.merged += 1
                 continue
-            if owner_id is not None:  # key left behind by a deleted item
+            if owner_id is not None and replaces is None:  # key left behind by a deleted item
                 session.execute(delete(ItemKey).where(ItemKey.item_id == owner_id))
             priority = priority_value(priorities or [], text)
             if keywords.is_blocked(text) and not priority:
@@ -150,9 +157,13 @@ def store_items(
                 keyword_groups=groups,
                 keyword_matched=bool(groups) or bool(priority) or keywords.empty or not use_keywords,
                 priority=priority,
+                official=official,
             )
             session.add(row)
             session.flush()
+            if replaces is not None:
+                take_over(session, row, replaces, now)
+                stats.merged += 1
             add_keys(session, row.id, keys)
             stats.new += 1
         else:
@@ -204,6 +215,28 @@ def attach_duplicate(session: Session, target: Item, source_id: str, source_name
     add_keys(session, target.id, keys)
 
 
+def take_over(session: Session, official: Item, copy: Item, now: datetime) -> None:
+    """`official` replaces `copy` (same story found earlier elsewhere): the copy becomes an
+    "also on" entry of the official item, its keys move over, and the copy row goes."""
+    source = session.get(Source, copy.source_id)
+    also = [a for a in (copy.extra or {}).get("also", []) if a.get("url") != official.url]
+    also.append(
+        {
+            "source": copy.source_id,
+            "source_name": source.name if source else copy.source_id,
+            "url": copy.url,
+            "author": copy.author,
+            "posted_by": (copy.extra or {}).get("posted_by", []),
+        }
+    )
+    official.extra = {**(official.extra or {}), "also": also[-20:]}
+    official.last_seen = now
+    session.execute(update(ItemKey).where(ItemKey.item_id == copy.id).values(item_id=official.id).execution_options(synchronize_session=False))
+    copy_id = copy.id
+    session.flush()
+    delete_items(session, [copy_id])
+
+
 def ensure_url_keys(session: Session) -> int:
     """Give items stored before item_keys existed their URL key (once)."""
     keyed = select(ItemKey.item_id)
@@ -232,7 +265,7 @@ def collect_all(
     session.add(run)
     session.flush()
     http = http or Http()
-    for source in config.sources:
+    for source in official_first(config.sources):  # Shopify's own sources first
         if only and source["id"] not in only:
             continue
         started = time.monotonic()
@@ -245,7 +278,9 @@ def collect_all(
                 collector.enrich(item)
         for item in result.items:
             item.media_type = item.media_type or source.get("media_type", "post")
-        stats = store_items(session, source["id"], result.items, config.keywords, max_age_days=max_age, priorities=config.priorities)
+        stats = store_items(
+            session, source["id"], result.items, config.keywords, max_age_days=max_age, priorities=config.priorities, official_settings=config.official
+        )
         run.items_new += stats.new
         run.items_seen += stats.seen
         message = result.message
