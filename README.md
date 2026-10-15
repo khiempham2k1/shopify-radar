@@ -97,6 +97,8 @@ radar run                   # thu thập, phân loại, nghe video, chấm đi�
 
 Nguồn nào lỗi (thiếu cookie Reddit/X, thiếu key) chỉ báo trên trang Sức khỏe nguồn, các nguồn khác vẫn chạy.
 
+Không thấy một bài trên dashboard? `radar find "chữ trong tiêu đề hoặc URL"` cho biết bài đã được thu thập chưa, bị gộp vào bài nào, hay AI xếp là không liên quan theme (trang Thay đổi nền tảng có tùy chọn "Hiện cả thay đổi AI cho là không liên quan theme").
+
 Sau khi đổi nhiều ở `interests.txt` (trọng tâm của radar), chạy `radar classify --reset` để bỏ tag và kết quả cũ, rồi phân loại lại các item gần đây theo nội dung mới.
 
 ## Phát triển

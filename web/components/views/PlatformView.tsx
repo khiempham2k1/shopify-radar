@@ -65,6 +65,7 @@ export function PlatformView() {
   const sources = useApi<Source[]>("sources");
   const [source, setSource] = useState("");
   const [affects, setAffects] = useState("");
+  const [allChanges, setAllChanges] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -76,6 +77,7 @@ export function PlatformView() {
     const p = new URLSearchParams({ view: "platform", limit: String(PAGE), offset: String(offset) });
     if (source) p.set("source", source);
     if (affects) p.set("affects", affects);
+    if (allChanges) p.set("all_changes", "true");
     return `items?${p}`;
   };
 
@@ -86,6 +88,7 @@ export function PlatformView() {
     const p = new URLSearchParams({ view: "platform", limit: String(PAGE), offset: "0" });
     if (source) p.set("source", source);
     if (affects) p.set("affects", affects);
+    if (allChanges) p.set("all_changes", "true");
     api<ItemList>(`items?${p}`, "GET", undefined, ctrl.signal)
       .then((d) => {
         setItems(d.items);
@@ -98,7 +101,7 @@ export function PlatformView() {
         setLoading(false);
       });
     return () => ctrl.abort();
-  }, [source, affects, tick]);
+  }, [source, affects, allChanges, tick]);
 
   async function loadMore() {
     setLoadingMore(true);
@@ -139,6 +142,9 @@ export function PlatformView() {
         ))}
         {sources.error && <span className="muted">Không tải được danh sách nguồn.</span>}
         <span className="spacer" />
+        <label className="check" title="Thay đổi chính thức mà AI xếp là không liên quan theme vẫn được lưu; bật để xem cả chúng">
+          <input type="checkbox" checked={allChanges} onChange={(e) => setAllChanges(e.target.checked)} /> Hiện cả thay đổi AI cho là không liên quan theme
+        </label>
         <AffectsSelect value={affects} onChange={setAffects} />
       </div>
 

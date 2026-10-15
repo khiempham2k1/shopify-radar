@@ -6,7 +6,7 @@ Chúng tôi là công ty làm theme bán trên Shopify Theme Store. Radar tập 
 
 Xếp theo thứ tự ưu tiên:
 
-1. Thay đổi nền tảng ảnh hưởng tới theme, nhất là có hạn chót: Liquid (tag, filter, object mới hoặc bị ngừng hỗ trợ), cấu trúc theme, Online Store 2.0, JSON template, section, block, theme block, settings schema, metafield và metaobject dùng trong theme, và các API theme gọi từ trình duyệt: Ajax API (Cart API /cart/add.js, /cart/change.js, /cart/update.js, Product API, Predictive Search API, Product Recommendations API) và Section Rendering API.
+1. Thay đổi nền tảng ảnh hưởng tới theme, nhất là có hạn chót: Liquid (tag, filter, object mới hoặc bị ngừng hỗ trợ), cấu trúc theme, Online Store 2.0, JSON template, section, block, theme block, settings schema, metafield và metaobject dùng trong theme, và các API theme gọi từ trình duyệt: Ajax API (Cart API /cart/add.js, /cart/change.js, /cart/update.js, Product API, Predictive Search API, Product Recommendations API) và Section Rendering API. Kể cả khi Shopify mô tả thay đổi qua webhook hay sự kiện (vd. carts/update không còn bắn khi giỏ hàng không đổi): giỏ hàng do theme thao tác nên vẫn liên quan.
 2. Theme Store và Partner: yêu cầu duyệt, tiêu chí hiệu năng và accessibility (Lighthouse, Core Web Vitals), chính sách và điều khoản cho người bán theme, listing, review, doanh thu, Partner Program.
 3. Theme editor: tính năng mới, thay đổi cách merchant chỉnh theme, lỗi và độ chậm của editor.
 4. Theme mặc định và theme tham chiếu của Shopify (Dawn, Horizon…), Shopify CLI cho theme, Theme Check, công cụ dev theme.
@@ -17,6 +17,6 @@ Xếp theo thứ tự ưu tiên:
 9. Nội dung trong Shopify Editions liên quan tới theme, Theme Store hoặc theme editor.
 
 Bỏ qua:
-- Thay đổi chỉ dành cho app: Admin API, GraphQL cho app, Shopify Functions, Polaris, App Bridge, billing app, webhook, checkout UI extensions không đụng tới theme, App Store.
+- Thay đổi chỉ dành cho app: Admin API, GraphQL cho app, Shopify Functions, Polaris, App Bridge, billing app, webhook không liên quan giỏ hàng/storefront, checkout UI extensions không đụng tới theme, App Store.
 - Headless: Hydrogen, Oxygen, Storefront API cho site tự dựng, Customer Account API cho headless.
 - Tin tuyển dụng, quảng cáo dịch vụ, bài bán hàng, dropshipping chung chung.

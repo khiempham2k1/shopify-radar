@@ -174,3 +174,23 @@ def test_community_page(client, db_url, fake_anthropic):
     assert not [i for i in feed if i["source"]["kind"] == "community"]
     # Weekly reports list only weekly reports.
     assert all(r.get("kind", "weekly") == "weekly" for r in client.get("/api/reports").json())
+
+
+def test_platform_can_show_changes_ai_rejected(client, db_url):
+    from radar.ingest import store_items
+    from radar.collectors.base import CollectedItem
+    from radar.config_loader import load_config
+    from radar.models import AIAnalyzed, Item
+    from sqlalchemy import select
+
+    session = session_factory(db_url)()
+    config = load_config(session)
+    store_items(session, "shopify-dev-changelog", [CollectedItem(url="https://shopify.dev/changelog/carts-update", title="Unchanged carts no longer trigger carts/update webhooks", media_type="change")], config.keywords)
+    item = session.scalar(select(Item).where(Item.url == "https://shopify.dev/changelog/carts-update"))
+    session.add(AIAnalyzed(item_id=item.id, prompt_hash="x", method="ai", matched=False))
+    session.commit()
+    item_id = item.id
+    session.close()
+    default = [i["id"] for i in client.get("/api/items", params={"view": "platform"}).json()["items"]]
+    everything = [i["id"] for i in client.get("/api/items", params={"view": "platform", "all_changes": "true"}).json()["items"]]
+    assert item_id not in default and item_id in everything

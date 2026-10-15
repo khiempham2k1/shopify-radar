@@ -105,7 +105,7 @@ export function PlatformRow({ item, compact = false }: { item: Item; compact?: b
         {item.impact ? (
           <span className={`pill ${item.impact}`}>Ảnh hưởng {IMPACT[item.impact].toLowerCase()}</span>
         ) : (
-          <span className="pill low">{item.analyzed ? "Chưa rõ ảnh hưởng" : "Chưa phân tích"}</span>
+          <span className="pill low">{!item.analyzed ? "Chưa phân tích" : item.relevance == null || item.relevance < 0.5 ? "AI: không liên quan theme" : "Chưa rõ ảnh hưởng"}</span>
         )}
         <Due deadline={item.deadline} days={item.days_left} />
       </div>

@@ -237,6 +237,7 @@ def list_items(
     q: str | None = None,
     priority: bool = False,
     sort: Sort | None = None,
+    all_changes: bool = False,
     days: int = Query(60, ge=1, le=365),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -256,7 +257,10 @@ def list_items(
     if status == "dismissed":
         conditions.append(ItemStatus.status == "dismissed")
     else:
-        conditions.append(visible_clause(min_score))
+        # all_changes (Platform page): also the official changes Claude judged unrelated to themes,
+        # so nothing Shopify announced is ever out of reach.
+        if not (all_changes and view == "platform"):
+            conditions.append(visible_clause(min_score))
         conditions.append(or_(ItemStatus.status.is_(None), ItemStatus.status != "dismissed"))
         if status == "new":
             conditions.append(or_(ItemStatus.status.is_(None), ItemStatus.status == "new"))

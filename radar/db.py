@@ -88,6 +88,12 @@ def at_head(url: str | None = None) -> bool:
     return current == heads
 
 
+def _has_version_table(url: str | None = None) -> bool:
+    from sqlalchemy import inspect
+
+    return inspect(get_engine(url)).has_table("alembic_version")
+
+
 def ensure_schema(url: str | None = None) -> None:
     """Make sure the tables exist before a command touches them.
 
@@ -101,6 +107,12 @@ def ensure_schema(url: str | None = None) -> None:
     log = logging.getLogger(__name__)
     if has_schema(url):
         if url is None and not at_head():
+            if not _has_version_table():
+                # Tables made straight from the models (tests, init_db): they already match head.
+                from alembic import command
+
+                command.stamp(_alembic_config(), "head")
+                return
             log.warning("DB %s chưa cập nhật migration mới, đang chạy migration…", describe_url())
             migrate()
         return

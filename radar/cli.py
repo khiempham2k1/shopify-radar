@@ -9,6 +9,7 @@
     radar status             which database is used and how many items it holds
     radar report             write last week's report now
     radar digest             sum up the last 24 h of community talk now (Discord, Shopify Community)
+    radar find TEXT          where an item is: stored? merged into another? what Claude made of it
     radar doctor [--network] check tools, logins and keys
     radar scheduler          run forever on the cron in sources.yaml
 """
@@ -112,6 +113,46 @@ def cmd_digest(_: argparse.Namespace) -> None:
         _print(community.refresh(session, config, make_claude(session, config), force=True))
 
 
+def cmd_find(args: argparse.Namespace) -> None:
+    """Look an item up by words of its title or a piece of its URL, and explain what happened to it."""
+    from sqlalchemy import String, cast, or_, select
+
+    from radar.models import AIAnalyzed, AIResult, Item
+
+    pattern = f"%{args.text.strip()}%"
+    with session_scope() as session:
+        found = list(session.scalars(select(Item).where(or_(Item.title.ilike(pattern), Item.url.ilike(pattern))).limit(10)))
+        merged = list(session.scalars(select(Item).where(cast(Item.extra, String).ilike(pattern)).limit(10)))
+        out = []
+        for item in found:
+            analyzed = session.get(AIAnalyzed, item.id)
+            results = [r for r in session.scalars(select(AIResult).where(AIResult.item_id == item.id, AIResult.status == "active"))]
+            best = max(results, key=lambda r: r.score, default=None)
+            out.append(
+                {
+                    "id": item.id,
+                    "source": item.source_id,
+                    "title": item.title,
+                    "url": item.url,
+                    "published_at": item.published_at,
+                    "first_seen": item.first_seen,
+                    "official": item.official,
+                    "score": item.score,
+                    "ai": (
+                        "chưa phân loại"
+                        if analyzed is None
+                        else (f"khớp: {best.tag.tag} · liên quan {best.score:.2f} · ảnh hưởng {best.impact} · {best.affects}" if best else "AI cho là không liên quan theme (bị ẩn; xem bằng 'Hiện cả thay đổi AI cho là không liên quan')")
+                    ),
+                }
+            )
+        for item in merged:
+            if item not in found:
+                out.append({"gộp vào": {"id": item.id, "source": item.source_id, "title": item.title}, "lý do": "bài tìm thấy trùng với bài này (xem extra.also)"})
+        if not out:
+            out = [{"kết quả": "Không có trong DB: chưa thu thập (nguồn lỗi, quá cũ so với max_age_days, hoặc chưa chạy lại)"}]
+        _print(out)
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     from sqlalchemy.exc import SQLAlchemyError
 
@@ -155,6 +196,9 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("report").set_defaults(func=cmd_report)
     sub.add_parser("digest").set_defaults(func=cmd_digest)
+    find = sub.add_parser("find")
+    find.add_argument("text", help="chữ trong tiêu đề hoặc một phần URL")
+    find.set_defaults(func=cmd_find)
     doctor = sub.add_parser("doctor")
     doctor.add_argument("--network", action="store_true", help="kiểm tra cả kết nối tới Jina, Exa, Groq")
     doctor.set_defaults(func=cmd_doctor)

@@ -349,3 +349,4 @@ tfoot td { font-weight: 600; }
 .c-channel { border-top: 1px solid var(--line); padding: 10px 0; }
 .c-channel > summary { cursor: pointer; }
 .c-messages { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; overflow-wrap: anywhere; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }

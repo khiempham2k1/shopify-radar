@@ -145,11 +145,13 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
       {channels.length === 0 ? (
         <Empty>Chưa có tin nhắn Discord nào.</Empty>
       ) : (
-        channels.map((c) => (
-          <details key={c.name} className="c-channel">
-            <summary>
+        channels.map((c) => {
+          const head = (
+            <>
               <b>{c.name}</b> <span className="muted">· {fmtNumber(c.count)} tin</span>
-            </summary>
+            </>
+          );
+          const list = (
             <ul className="c-messages">
               {c.messages.map((m) => (
                 <li key={m.id}>
@@ -162,8 +164,20 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
                 </li>
               ))}
             </ul>
-          </details>
-        ))
+          );
+          // Collapsible only when there are many channels; one or two are shown in full.
+          return channels.length > 2 ? (
+            <details key={c.name} className="c-channel">
+              <summary>{head}</summary>
+              {list}
+            </details>
+          ) : (
+            <div key={c.name} className="c-channel">
+              <div>{head}</div>
+              {list}
+            </div>
+          );
+        })
       )}
     </div>
   );

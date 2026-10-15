@@ -403,3 +403,15 @@ def test_hot_ranks_within_source_and_decays(session, config):
     assert 0 < article.hot < top_post.hot
     assert engagement_percentiles([quiet_post])[quiet_post.id] == 1.0
     assert hot_score(1.0, 0, now, now, 24) == 10.0 and hot_score(1.0, 0, now - timedelta(hours=24), now, 24) == 5.0
+
+
+def test_cli_find_explains_an_item(session, config, capsys, db_url):
+    from radar.cli import main
+
+    add_items(session, config, "shopify-dev-changelog", ["Unchanged carts no longer trigger carts/update webhooks"], media_type="change")
+    session.commit()
+    main(["find", "carts/update"])
+    out = capsys.readouterr().out
+    assert "Unchanged carts" in out and "chưa phân loại" in out
+    main(["find", "nothing-like-this"])
+    assert "Không có trong DB" in capsys.readouterr().out
