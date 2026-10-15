@@ -30,8 +30,8 @@ Mỗi lần chạy (mặc định mỗi 2 giờ, xem `schedule.collect` trong `c
 
 ## Quyền xem
 
-- **Giai đoạn 1** (Tổng quan, Thay đổi nền tảng, Feed, Sức khỏe nguồn): ai mở được dashboard đều xem được, không cần đăng nhập. Muốn bấm "Không liên quan" thì đăng nhập bằng tài khoản Google thuộc `ALLOWED_EMAIL_DOMAINS`.
-- **Giai đoạn 2** (Báo cáo tuần, Cài đặt, Chi phí AI): phải đăng nhập, và chỉ các email trong `PHASE2_EMAILS` (ngăn bằng dấu phẩy) mới thấy menu và mở được trang. API cũng chặn theo danh sách này, không chỉ ẩn menu.
+- **Giai đoạn 1** (Tổng quan, Thay đổi nền tảng, Feed, Sức khỏe nguồn): ai mở được dashboard đều xem được, không cần đăng nhập, và không thấy link đăng nhập.
+- **Chỉ quản trị đăng nhập:** các email trong `PHASE2_EMAILS` (ngăn bằng dấu phẩy) mở thẳng `/login`, đăng nhập Google. Tài khoản khác bị từ chối. Quản trị thấy Giai đoạn 2 (Báo cáo tuần, Cài đặt, Chi phí AI), nút "Không liên quan" và chi tiết kỹ thuật. API cũng chặn theo danh sách này, không chỉ ẩn menu.
 - Trang công khai không hiện chi tiết kỹ thuật (tên công cụ, lỗi chi tiết, cấu hình, DB). Tài khoản Giai đoạn 2 vẫn thấy cột "Công cụ đang dùng" và lỗi chi tiết ở Sức khỏe nguồn; trạng thái đăng nhập Reddit/X nằm ở trang Cài đặt.
 - `AUTH_DISABLED=true` (chỉ dùng khi chạy local) mở mọi trang, kể cả Giai đoạn 2.
 

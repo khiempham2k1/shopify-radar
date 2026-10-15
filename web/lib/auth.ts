@@ -4,7 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 
 import { authDisabled, emailAllowed } from "./access";
 
-export { allowedDomains, authDisabled, canSeePhase2, emailAllowed, phase2Emails } from "./access";
+export { authDisabled, canSeePhase2, emailAllowed, phase2Emails } from "./access";
 
 export const DEV_USER = "dev@local";
 

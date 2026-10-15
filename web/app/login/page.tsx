@@ -15,9 +15,5 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const callbackUrl = safeCallback(params.callbackUrl);
   if (authDisabled() || (await currentUserEmail())) redirect(callbackUrl);
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
-  const domains = (process.env.ALLOWED_EMAIL_DOMAINS ?? "")
-    .split(",")
-    .map((d) => d.trim().replace(/^@/, ""))
-    .filter(Boolean);
-  return <LoginCard callbackUrl={callbackUrl} error={error ?? null} domains={domains} />;
+  return <LoginCard callbackUrl={callbackUrl} error={error ?? null} />;
 }

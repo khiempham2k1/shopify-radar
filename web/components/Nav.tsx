@@ -68,30 +68,21 @@ export function Nav() {
           </>
         )}
       </nav>
-      <div className="user">
-        {authDisabled ? (
-          <>
-            <span className="email" title={email}>
-              {email}
-            </span>
+      {/* Visitors read without an account and see no sign-in link; admins open /login directly. */}
+      {(authDisabled || email) && (
+        <div className="user">
+          <span className="email" title={email}>
+            {email}
+          </span>
+          {authDisabled ? (
             <span>Chế độ dev · không đăng nhập</span>
-          </>
-        ) : email ? (
-          <>
-            <span className="email" title={email}>
-              {email}
-            </span>
+          ) : (
             <button type="button" className="linklike" onClick={() => signOut({ callbackUrl: "/" })}>
               Đăng xuất
             </button>
-          </>
-        ) : (
-          <>
-            <span>Đang xem không đăng nhập</span>
-            <Link href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}>Đăng nhập</Link>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </aside>
   );
 }
