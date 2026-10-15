@@ -37,6 +37,10 @@ class AIRefusal(AIError):
     pass
 
 
+class AITruncated(AIError):
+    """The answer hit max_tokens: ask for less (e.g. a smaller batch) and try again."""
+
+
 @dataclass
 class CallSpec:
     task: str
@@ -60,7 +64,7 @@ def parse_json_message(message: Any) -> dict[str, Any]:
         category = getattr(getattr(message, "stop_details", None), "category", None)
         raise AIRefusal(f"Claude từ chối yêu cầu (category={category})")
     if message.stop_reason == "max_tokens":
-        raise AIError("Kết quả bị cắt vì chạm max_tokens")
+        raise AITruncated("Kết quả bị cắt vì chạm max_tokens")
     text = "".join(block.text for block in message.content if block.type == "text")
     try:
         return json.loads(text)

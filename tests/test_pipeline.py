@@ -446,3 +446,25 @@ def test_areas_decide_relevance_and_platform_items_are_never_dropped(session, co
     assert admin_result.reason == "Chỉ Admin API cho app"
     # Claude skipped an official change: not marked analyzed, so it stays visible and is sent again.
     assert session.get(AIAnalyzed, silent.id) is None and session.get(AIAnalyzed, admin.id) is not None
+
+
+def test_truncated_batch_is_split_until_it_fits(session, config):
+    from tests.conftest import FakeAnthropic, default_responder
+
+    titles = [f"Looking for a Shopify theme with quick add #{i}" for i in range(6)]
+    add_items(session, config, "reddit", titles)
+    sizes = []
+
+    def responder(kwargs):
+        user = kwargs["messages"][0]["content"]
+        if "results" in kwargs["output_config"]["format"]["schema"]["properties"]:
+            count = user.count("[id=")
+            sizes.append(count)
+            if count > 2:  # answers for more than two items get cut off
+                return make_message({"results": []}, stop_reason="max_tokens")
+        return default_responder(kwargs)
+
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=FakeAnthropic(responder))
+    stats = classify(session, config, claude)
+    assert stats.failed_batches == 0 and stats.sent == 6 and stats.matched == 6
+    assert sizes[0] == 6 and max(sizes[1:]) <= 3 and session.scalar(select(func.count()).select_from(AIAnalyzed)) == 6

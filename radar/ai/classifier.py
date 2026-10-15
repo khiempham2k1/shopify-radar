@@ -21,7 +21,7 @@ from typing import Any
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from radar.ai.client import AIError, CallSpec, ClaudeClient
+from radar.ai.client import AIError, AITruncated, CallSpec, ClaudeClient
 from radar.ai.tags import sync_tags
 from radar.areas import render_areas
 from radar.config_loader import RadarConfig, load_prompt
@@ -163,7 +163,9 @@ def build_spec(session: Session, config: RadarConfig, tags: list[AITag], items: 
         prompt.user,
         classify_schema(config),
         effort=config.ai.get("classify_effort", "low"),
-        max_tokens=16000,
+        # Non-streaming calls should stay near 16000 output tokens (HTTP timeouts); a batch that
+        # needs more is split instead (classify_chunk).
+        max_tokens=int(config.ai.get("classify_max_tokens", 16000)),
     )
 
 
@@ -265,19 +267,37 @@ def classify(session: Session, config: RadarConfig, claude: ClaudeClient) -> Cla
         return _classify_with_batches(session, config, claude, sync.tags, stats)
 
     items = pending_items(session, config)
-    for chunk in _chunks(items, int(config.ai.get("batch_size", 50))):
-        stats.sent += len(chunk)
-        try:
-            data = claude.call_json(build_spec(session, config, sync.tags, chunk))
-        except AIError as exc:
-            stats.failed_batches += 1
-            stats.errors.append(str(exc))
-            log.warning("Classification batch failed, keeping keyword fallback: %s", exc)
-            session.commit()  # keep the usage row even when parsing failed
-            continue
-        stats.matched += apply_results(session, config, chunk, sync.tags, data)
-        session.commit()
+    for chunk in _chunks(items, int(config.ai.get("batch_size", 20))):
+        classify_chunk(session, config, claude, sync.tags, chunk, stats)
     return stats
+
+
+def classify_chunk(session: Session, config: RadarConfig, claude: ClaudeClient, tags: list[AITag], chunk: list[Item], stats: ClassifyStats) -> None:
+    """One Claude call for `chunk`; when the answer is cut off at max_tokens, split the
+    chunk in two and classify each half, so no item is lost to a long answer."""
+    stats.sent += len(chunk)
+    try:
+        data = claude.call_json(build_spec(session, config, tags, chunk))
+    except AITruncated as exc:
+        session.commit()  # keep the usage row
+        stats.sent -= len(chunk)
+        if len(chunk) > 1:
+            log.info("Answer for %d items hit max_tokens; splitting the batch", len(chunk))
+            middle = len(chunk) // 2
+            classify_chunk(session, config, claude, tags, chunk[:middle], stats)
+            classify_chunk(session, config, claude, tags, chunk[middle:], stats)
+            return
+        stats.failed_batches += 1
+        stats.errors.append(f"Item {chunk[0].id}: {exc}")
+        return
+    except AIError as exc:
+        stats.failed_batches += 1
+        stats.errors.append(str(exc))
+        log.warning("Classification batch failed, keeping keyword fallback: %s", exc)
+        session.commit()  # keep the usage row even when parsing failed
+        return
+    stats.matched += apply_results(session, config, chunk, tags, data)
+    session.commit()
 
 
 def _classify_with_batches(

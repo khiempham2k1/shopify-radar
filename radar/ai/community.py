@@ -191,7 +191,7 @@ def digest_due(session: Session, config: RadarConfig, now: datetime | None = Non
     return last is None or _aware(last) <= now - timedelta(hours=every)
 
 
-def summarize_threads(session: Session, config: RadarConfig, claude: ClaudeClient, limit: int = 120, batch: int = 30) -> int:
+def summarize_threads(session: Session, config: RadarConfig, claude: ClaudeClient, limit: int = 120, batch: int = 15) -> int:
     """Vietnamese summary for new Shopify Community threads (not for chat messages)."""
     sources = community_sources(session)
     if not sources:
@@ -215,7 +215,7 @@ def summarize_threads(session: Session, config: RadarConfig, claude: ClaudeClien
         chunk = pending[start : start + batch]
         listing = "\n\n".join(f"[id={i.id}] Tiêu đề: {i.title}\nNội dung: {' '.join((i.content or '').split())[:1500]}" for i in chunk)
         prompt = load_prompt("community_summarize", count=len(chunk), items=listing)
-        data = claude.call_json(CallSpec("community", prompt.system, prompt.user, SUMMARY_SCHEMA, effort="low", max_tokens=8000))
+        data = claude.call_json(CallSpec("community", prompt.system, prompt.user, SUMMARY_SCHEMA, effort="low", max_tokens=16000))
         by_id = {i.id: i for i in chunk}
         for row in data.get("items", []):
             item = by_id.get(row.get("id"))

@@ -27,7 +27,8 @@ ai:
   classify_effort: low
   summarize_effort: medium
   report_effort: high
-  batch_size: 50                  # số item mỗi lần gọi Claude khi phân loại
+  batch_size: 20                  # số item mỗi lần gọi Claude khi phân loại (lô bị cắt vì quá dài sẽ tự chia đôi)
+  classify_max_tokens: 16000      # độ dài tối đa câu trả lời mỗi lô; giữ ≤ 16000 (gọi không streaming, tránh timeout)
   max_items_per_run: 400          # trần số item gửi Claude mỗi lần chạy
   content_chars: 500              # cắt nội dung mỗi item khi gửi phân loại
   min_score: 0.5                  # điểm liên quan tối thiểu (0..1) để coi là khớp
