@@ -78,7 +78,7 @@ npm ci && npm run dev       # mở http://localhost:3000
 **3. Lấy dữ liệu thật** (terminal backend, virtualenv đang bật):
 
 ```bash
-pip install "twitter-cli==0.8.5" "rdt-cli @ git+https://github.com/public-clis/rdt-cli.git@5e4fb3720d5c174e976cd425ccc3b879d52cac66"
+pip install "twitter-cli @ git+https://github.com/jackwener/twitter-cli.git@7c634e0d396b1e7af9f63315b414925fe4f29ae7" "rdt-cli @ git+https://github.com/public-clis/rdt-cli.git@5e4fb3720d5c174e976cd425ccc3b879d52cac66"
 radar doctor --network      # xem công cụ nào chạy được, thiếu key/cookie gì
 radar run                   # thu thập, phân loại, nghe video, chấm điểm
 ```

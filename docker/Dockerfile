@@ -16,7 +16,7 @@ COPY migrations ./migrations
 RUN pip install --no-cache-dir -e . \
     # Free collection tools chosen by Agent Reach, pinned (see docs/PLAN.md).
     && pip install --no-cache-dir \
-        "twitter-cli==0.8.5" \
+        "twitter-cli @ git+https://github.com/jackwener/twitter-cli.git@7c634e0d396b1e7af9f63315b414925fe4f29ae7" \
         "rdt-cli @ git+https://github.com/public-clis/rdt-cli.git@5e4fb3720d5c174e976cd425ccc3b879d52cac66" \
         "agent-reach @ git+https://github.com/Panniantong/agent-reach.git@94f06c1969dfc1834001269d79d3ad0972d9dee6"
 COPY config ./config
