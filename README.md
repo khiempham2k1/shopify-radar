@@ -1,6 +1,6 @@
 # Shopify Radar
 
-Dashboard nội bộ cho team làm theme (Shopify Theme Store) và app (Shopify App): theo dõi thay đổi nền tảng Shopify, thảo luận trên social và web, rồi dùng Claude để lọc, tóm tắt và viết báo cáo tuần.
+Dashboard nội bộ cho team làm theme (Shopify Theme Store): theo dõi thay đổi nền tảng Shopify, thảo luận trên social và web, rồi dùng Claude để lọc, tóm tắt và viết báo cáo tuần. Radar tập trung vào những gì ảnh hưởng tới theme; thay đổi chỉ dành cho app bị bỏ qua, trừ app block và theme app extension.
 
 Kế hoạch và các quyết định: [`docs/PLAN.md`](docs/PLAN.md).
 
@@ -86,6 +86,8 @@ radar run                   # thu thập, phân loại, nghe video, chấm đi�
 ```
 
 Nguồn nào lỗi (thiếu cookie Reddit/X, thiếu key) chỉ báo trên trang Sức khỏe nguồn, các nguồn khác vẫn chạy.
+
+Sau khi đổi nhiều ở `interests.txt` (trọng tâm của radar), chạy `radar classify --reset` để bỏ tag và kết quả cũ, rồi phân loại lại các item gần đây theo nội dung mới.
 
 ## Phát triển
 

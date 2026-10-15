@@ -3,7 +3,7 @@
     radar migrate            apply database migrations (Alembic)
     radar run [--source ID]  one full run: collect, classify, videos, score
     radar collect            collect only
-    radar classify           classify pending items only
+    radar classify [--reset] classify pending items only (--reset: start over with new tags)
     radar videos             process the video queue only
     radar score              recompute scores
     radar status             which database is used and how many items it holds
@@ -52,14 +52,21 @@ def cmd_collect(args: argparse.Namespace) -> None:
         _print({"crawl_run": run.id, "new": run.items_new, "seen": run.items_seen})
 
 
-def cmd_classify(_: argparse.Namespace) -> None:
+def cmd_classify(args: argparse.Namespace) -> None:
     from radar.ai.classifier import classify
+    from radar.ai.tags import reset_classification
     from radar.config_loader import load_config
     from radar.pipeline import make_claude
+    from radar.scoring import rescore
 
     with session_scope() as session:
         config = load_config(session)
-        _print(classify(session, config, make_claude(session, config)))
+        if args.reset:
+            print(f"Đã bỏ {reset_classification(session)} kết quả phân loại cũ, phân loại lại theo interests.txt hiện tại…")
+            session.commit()
+        stats = classify(session, config, make_claude(session, config))
+        rescore(session, config)
+        _print(stats)
 
 
 def cmd_videos(_: argparse.Namespace) -> None:
@@ -129,7 +136,9 @@ def main(argv: list[str] | None = None) -> None:
         p = sub.add_parser(name)
         p.add_argument("--source", action="append", help="chỉ chạy nguồn này (lặp lại được)")
         p.set_defaults(func=func)
-    sub.add_parser("classify").set_defaults(func=cmd_classify)
+    classify_p = sub.add_parser("classify")
+    classify_p.add_argument("--reset", action="store_true", help="bỏ tag và kết quả cũ, phân loại lại item gần đây theo interests.txt")
+    classify_p.set_defaults(func=cmd_classify)
     sub.add_parser("videos").set_defaults(func=cmd_videos)
     sub.add_parser("score").set_defaults(func=cmd_score)
     sub.add_parser("status").set_defaults(func=cmd_status)

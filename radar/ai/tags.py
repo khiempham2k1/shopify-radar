@@ -131,3 +131,15 @@ def sync_tags(session: Session, config: RadarConfig, claude: ClaudeClient) -> Ta
     session.flush()
     log.info("Tags updated: kept %d, removed %d, added %d, full=%s", len(keep), len(removed), len(new_entries), full)
     return TagSync(tags=active_tags(session), changed=True, full_reclassify=full)
+
+
+def reset_classification(session: Session) -> int:
+    """Start classification over: retire every tag and result so the next run builds
+    tags from the current interests.txt and classifies recent items again. Used after
+    the team changes what the radar focuses on. Returns how many results were retired."""
+    now = utcnow()
+    retired = session.execute(update(AIResult).where(AIResult.status == "active").values(status="deprecated")).rowcount or 0
+    session.execute(update(AITag).where(AITag.status == "active").values(status="deprecated", deprecated_at=now))
+    session.execute(delete(AIAnalyzed))
+    session.flush()
+    return retired

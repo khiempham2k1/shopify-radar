@@ -1,13 +1,14 @@
-Chúng tôi là công ty làm theme bán trên Shopify Theme Store và làm Shopify app.
-Radar cần tìm những tin sau, xếp theo thứ tự ưu tiên:
+Chúng tôi là công ty làm theme bán trên Shopify Theme Store. Radar tập trung vào THEME:
+những gì làm thay đổi cách theme được xây, duyệt, bán hoặc chạy trên store của merchant.
+Xếp theo thứ tự ưu tiên:
 
-1. Thay đổi nền tảng có hạn chót: API version mới, API hoặc tính năng bị ngừng hỗ trợ, thay đổi bắt buộc với theme hoặc app.
-2. Yêu cầu duyệt của Theme Store và tiêu chí hiệu năng (Lighthouse, Core Web Vitals), chính sách Partner.
-3. Checkout extensibility, checkout UI extensions, trang cảm ơn, app extension và app block.
-4. Theme editor, section, block, metafield, Liquid và các công cụ dev của Shopify (CLI, theme check).
-5. Hiệu năng theme và theme editor: tốc độ trang, editor chậm, số section lớn.
-6. Merchant cần tính năng gì mà theme hiện tại chưa có (bundles, quick add, mega menu, bộ lọc, nhiều SKU…).
-7. Lỗi tích hợp giữa app và theme (app block không hiển thị, xung đột script).
-8. Nội dung mới trong Shopify Editions liên quan tới theme hoặc app.
+1. Thay đổi nền tảng ảnh hưởng tới theme, nhất là có hạn chót: Liquid (tag, filter, object mới hoặc bị ngừng hỗ trợ), cấu trúc theme, Online Store 2.0, JSON template, section, block, theme block, settings schema, metafield và metaobject dùng trong theme, Section Rendering API, Ajax/Cart API.
+2. Yêu cầu duyệt của Theme Store, chính sách dành cho người bán theme, tiêu chí hiệu năng và accessibility (Lighthouse, Core Web Vitals).
+3. Theme editor: tính năng mới, thay đổi cách merchant chỉnh theme, lỗi và độ chậm của editor.
+4. Theme mặc định và theme tham chiếu của Shopify (Dawn, Horizon…), Shopify CLI cho theme, Theme Check, công cụ dev theme.
+5. Hiệu năng theme: tốc độ trang, ảnh, script, số section lớn.
+6. Merchant cần gì ở theme mà theme hiện tại chưa có (bundles, quick add, mega menu, bộ lọc, swatch, nhiều SKU…), phàn nàn và so sánh theme.
+7. App ảnh hưởng tới theme: app block, theme app extension không hiển thị, xung đột script hoặc CSS với theme.
+8. Nội dung trong Shopify Editions liên quan tới theme hoặc theme editor.
 
-Bỏ qua: tin tuyển dụng, quảng cáo dịch vụ, bài bán hàng, dropshipping chung chung không liên quan theme/app.
+Bỏ qua: thay đổi chỉ dành cho app (Admin API, GraphQL cho app, Shopify Functions, Polaris, App Bridge, billing app, checkout UI extensions không đụng tới theme), tin tuyển dụng, quảng cáo dịch vụ, bài bán hàng, dropshipping chung chung.

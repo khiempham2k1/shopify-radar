@@ -32,7 +32,7 @@ from radar.scoring import rescore
 TAGS = [
     ("Thay đổi nền tảng & hạn chót", "API version, deprecation, thay đổi bắt buộc với theme hoặc app"),
     ("Yêu cầu Theme Store", "Tiêu chí duyệt và hiệu năng của Theme Store"),
-    ("Checkout & app extension", "Checkout extensibility, trang cảm ơn, app block"),
+    ("App block & theme app extension", "App hiển thị trong theme: app block, theme app extension"),
     ("Theme editor & Liquid", "Section, block, metafield, công cụ dev"),
     ("Hiệu năng theme", "Tốc độ trang, editor chậm"),
     ("Nhu cầu merchant", "Tính năng merchant cần mà theme chưa có"),

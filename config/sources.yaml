@@ -77,6 +77,8 @@ sources:
     max_age_days: 0               # luôn là Edition mới nhất, trang không ghi ngày từng tính năng
     media_type: change
 
+  # Tắt: news.shopify.com là tin doanh nghiệp (kết quả kinh doanh, đối tác, sự kiện), hầu như không có
+  # thay đổi kỹ thuật cho theme; URL RSS cũng chưa được xác nhận. Bật lên nếu team muốn theo dõi.
   - id: shopify-news
     name: Shopify news
     type: rss
@@ -89,7 +91,7 @@ sources:
     name: GitHub releases
     type: github_releases
     kind: platform
-    repos: ["Shopify/cli", "Shopify/dawn", "Shopify/polaris", "Shopify/theme-tools"]
+    repos: ["Shopify/dawn", "Shopify/theme-tools", "Shopify/cli"]   # theme mẫu, Theme Check/Liquid tools, CLI (lệnh theme)
     media_type: release
 
   # ── Social ─────────────────────────────────────────────────
@@ -99,7 +101,7 @@ sources:
     kind: social
     backends: [rdt-cli, exa]      # thứ tự ưu tiên; rdt-cli cần cookie tài khoản riêng
     subreddits: [shopify, shopifydev, ecommerce]
-    queries: ["shopify theme", "shopify app", "checkout extensibility"]
+    queries: ["shopify theme", "shopify liquid", "theme editor"]
     limit: 25
 
   - id: twitter
@@ -107,7 +109,7 @@ sources:
     type: twitter
     kind: social
     backends: [twitter-cli]
-    queries: ["shopify theme", "shopify app developer", "\"checkout extensibility\""]
+    queries: ["shopify theme", "shopify liquid", "\"theme store\" shopify"]
     limit: 30
 
   - id: shopify-community
@@ -126,7 +128,7 @@ sources:
     backends: [yt-dlp]
     keyword_filter: false         # tiêu đề video ít thông tin: gửi thẳng cho Claude chấm sơ bộ
     drop_undated: true            # video không rõ ngày đăng thì bỏ (có thể là video nhiều năm trước)
-    queries: ["shopify theme review", "shopify theme development", "shopify checkout extensions"]
+    queries: ["shopify theme review", "shopify theme development", "shopify theme customization"]
     limit: 10
 
   # ── Web ───────────────────────────────────────────────────

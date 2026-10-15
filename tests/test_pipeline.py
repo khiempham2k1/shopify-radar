@@ -343,3 +343,20 @@ def test_rate_limited_captions_fall_back_to_groq(session, config, fake_anthropic
     groq = lambda *a, **k: media.Transcript(via="groq", segments=[{"start": 0, "end": 1, "text": "x"}], audio_seconds=300)  # noqa: E731
     stats = process_videos(session, config, claude, fetch_subtitles=limited, transcribe_groq=groq, get_duration=lambda u: 300)
     assert stats.via_groq == 1 and stats.failed == 0
+
+
+def test_reset_classification_rebuilds_tags_and_reclassifies(session, config, fake_anthropic):
+    from radar.ai.tags import reset_classification
+
+    add_items(session, config, "reddit", ["Looking for a Shopify theme with quick add"])
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    classify(session, config, claude)
+    old_tags = {t.id for t in active_tags(session)}
+    assert session.scalar(select(func.count()).select_from(AIAnalyzed)) == 1
+
+    assert reset_classification(session) >= 0
+    assert active_tags(session) == [] and session.scalar(select(func.count()).select_from(AIAnalyzed)) == 0
+    assert len(pending_items(session, config)) == 1
+    classify(session, config, claude)
+    assert {t.id for t in active_tags(session)}.isdisjoint(old_tags)
+    assert session.scalar(select(func.count()).select_from(AIAnalyzed)) == 1

@@ -1,4 +1,4 @@
-# Shopify Radar — từ khóa (cú pháp theo TrendRadar)
+# Shopify Radar — từ khóa (cú pháp theo TrendRadar). Trọng tâm: theme.
 #   [GLOBAL_FILTER]  từ bị loại ở mọi nơi
 #   [Tên nhóm]       mở một nhóm; dòng trống kết thúc nhóm
 #   từ               khớp nếu có từ này (các từ trong nhóm là "hoặc")
@@ -8,6 +8,7 @@
 #   !từ              loại item khỏi nhóm này
 #   @20              hiển thị tối đa 20 item cho nhóm
 # File trống = không lọc, mọi item đều chuyển sang AI.
+# Item của nguồn nền tảng (changelog, Editions…) luôn được gửi cho AI, không qua bộ lọc này.
 
 [GLOBAL_FILTER]
 /\bhiring\b/
@@ -22,28 +23,30 @@ theme doesn't support
 theme does not support
 /switch(ing)? (my )?theme/
 /recommend(ation)?s? .*theme/
+/\b(quick add|mega menu|swatch(es)?|product filters?)\b/
 
-[Theme Store & theme]
+[Theme & Theme Store]
 theme store
-/\btheme (editor|app extension|check|kit)\b/
+/\btheme (editor|check|block|settings|developer|development)s?\b/
 online store 2.0
 /\bliquid\b/
+/\bjson templates?\b/
 section rendering
+/\bsections? (group|schema)s?\b/
 /\bmetafields?\b/
+/\bmetaobjects?\b/
+/\b(dawn|horizon) theme\b/
 
-[Checkout & app]
-checkout extensibility
-/checkout\.liquid/
-thank you page
-/\bcheckout (ui )?extensions?\b/
+[App trong theme]
 /\bapp blocks?\b/
-/\bshopify (cli|functions|polaris|app bridge)\b/
+/\btheme app extensions?\b/
++theme
 
-[API & deprecation]
-/\b(admin|storefront) api\b/
+[Thay đổi & ngừng hỗ trợ]
 /\bdeprecat(e|ed|ion)\b/
-/\bapi version\b/
-/\b20[0-9]{2}-(01|04|07|10)\b/
+/\bbreaking change\b/
+/\bsunset(ting)?\b/
++theme
 
 [Hiệu năng]
 /\b(lighthouse|core web vitals|page speed|pagespeed)\b/
