@@ -222,6 +222,16 @@ def build_digest(session: Session, config: RadarConfig, claude: ClaudeClient, no
     return report
 
 
+def delete_digests(session: Session) -> int:
+    """Remove every community digest (the messages and translations stay); the next
+    digest then covers the last `digest_hours` again."""
+    reports = list(session.scalars(select(Report).where(Report.kind == KIND)))
+    for report in reports:
+        session.delete(report)
+    session.flush()
+    return len(reports)
+
+
 def digest_due(session: Session, config: RadarConfig, now: datetime | None = None) -> bool:
     now = now or utcnow()
     every = float(config.section("community").get("digest_every_hours", 6))

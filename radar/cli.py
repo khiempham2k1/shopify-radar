@@ -8,7 +8,8 @@
     radar score              recompute scores
     radar status             which database is used and how many items it holds
     radar report             write last week's report now
-    radar digest             sum up the last 24 h of community talk now (Discord, Shopify Community)
+    radar digest [--reset]   sum up new community talk now (Discord, Shopify Community);
+                             --reset: delete every community digest first, then write one fresh
     radar find TEXT          where an item is: stored? merged into another? what Claude made of it
     radar doctor [--network] check tools, logins and keys
     radar scheduler          run forever on the cron in sources.yaml
@@ -103,12 +104,14 @@ def cmd_report(_: argparse.Namespace) -> None:
         _print({"report": report.id, "period": [report.period_start, report.period_end], "items": report.items_considered})
 
 
-def cmd_digest(_: argparse.Namespace) -> None:
+def cmd_digest(args: argparse.Namespace) -> None:
     from radar.ai import community
     from radar.config_loader import load_config
     from radar.pipeline import make_claude
 
     with session_scope() as session:
+        if args.reset:
+            print(f"Đã xóa {community.delete_digests(session)} bản tóm tắt cộng đồng")
         config = load_config(session)
         _print(community.refresh(session, config, make_claude(session, config), force=True))
 
@@ -195,7 +198,9 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("score").set_defaults(func=cmd_score)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("report").set_defaults(func=cmd_report)
-    sub.add_parser("digest").set_defaults(func=cmd_digest)
+    digest_p = sub.add_parser("digest")
+    digest_p.add_argument("--reset", action="store_true", help="xóa mọi bản tóm tắt cộng đồng cũ rồi tóm tắt lại từ đầu (tin nhắn giữ nguyên)")
+    digest_p.set_defaults(func=cmd_digest)
     find = sub.add_parser("find")
     find.add_argument("text", help="chữ trong tiêu đề hoặc một phần URL")
     find.set_defaults(func=cmd_find)

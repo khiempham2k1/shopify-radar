@@ -167,3 +167,13 @@ def test_translation_splits_batch_on_max_tokens(session, config, fake_anthropic)
     claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
     assert community.translate_messages(session, config, claude) == 6
     assert len(calls) == 3  # 6 messages: too long, then 3 + 3
+
+
+def test_reset_digests_starts_over(session, config, fake_anthropic):
+    seed_talk(session, config)
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    community.refresh(session, config, claude)
+    assert community.delete_digests(session) == 1
+    fresh = session.get(Report, community.refresh(session, config, claude, force=True)["digest"])
+    assert fresh.items_considered == 6  # all talk of the last 24 h again, nothing lost
+    assert session.scalar(select(community.Item).where(community.Item.external_id == "0")).summary  # translations kept
