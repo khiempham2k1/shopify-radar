@@ -50,18 +50,47 @@ Nếu sửa lịch chạy (`schedule`) trên trang Cài đặt, cần khởi đ�
 | `radar doctor [--network]` | Kiểm tra công cụ, cookie, key |
 | `radar scheduler` | Chạy theo lịch (lệnh mặc định của worker) |
 
+## Chạy trên máy (local)
+
+Cần Python 3.12 trở lên (`python3 --version`; trên Mac: `brew install python@3.12`) và Node.js 22. Muốn lấy dữ liệu thật thì cần thêm `ffmpeg` (`brew install ffmpeg`).
+
+**1. Backend** (ở thư mục gốc của repo, không phải `web/`):
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env        # điền ANTHROPIC_API_KEY, GROQ_API_KEY nếu muốn chạy thật
+radar migrate               # tạo DB SQLite ở .data/radar.db
+python -m radar.demo        # (tùy chọn) nạp dữ liệu mẫu để xem dashboard
+uvicorn api.main:app --port 8000
+```
+
+`radar` và API tự đọc file `.env` ở thư mục gốc. Lệnh `radar` chỉ có khi virtualenv đang bật (`source .venv/bin/activate`).
+
+**2. Dashboard** (terminal khác):
+
+```bash
+cd web
+cp .env.example .env        # sửa: RADAR_API_URL=http://127.0.0.1:8000 và AUTH_DISABLED=true
+npm ci && npm run dev       # mở http://localhost:3000
+```
+
+**3. Lấy dữ liệu thật** (terminal backend, virtualenv đang bật):
+
+```bash
+pip install "twitter-cli==0.8.5" "rdt-cli @ git+https://github.com/public-clis/rdt-cli.git@5e4fb3720d5c174e976cd425ccc3b879d52cac66"
+radar doctor --network      # xem công cụ nào chạy được, thiếu key/cookie gì
+radar run                   # thu thập, phân loại, nghe video, chấm điểm
+```
+
+Nguồn nào lỗi (thiếu cookie Reddit/X, thiếu key) chỉ báo trên trang Sức khỏe nguồn, các nguồn khác vẫn chạy.
+
 ## Phát triển
 
 ```bash
-uv venv .venv && . .venv/bin/activate && uv pip install -e ".[dev]"
+pip install -e ".[dev]"
 python -m pytest                              # SQLite
 TEST_DATABASE_URL=postgresql+psycopg://... python -m pytest   # Postgres
-
-# Dữ liệu mẫu để thử dashboard mà không cần mạng hay API key
-export DATABASE_URL=sqlite:///$PWD/.data/dev.db
-python -c "from radar.db import init_db; init_db()" && python -m radar.demo
-uvicorn api.main:app --port 8000
-cd web && npm ci && AUTH_DISABLED=true RADAR_API_URL=http://127.0.0.1:8000 npm run dev
 ```
 
 Cấu trúc:

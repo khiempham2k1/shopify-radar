@@ -1,5 +1,7 @@
 """Alembic environment: the database URL comes from DATABASE_URL (radar.settings)."""
 
+from pathlib import Path
+
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
@@ -18,6 +20,10 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    url = get_settings().database_url
+    if url.startswith("sqlite:///"):
+        # Local SQLite: create the folder (e.g. .data/) on first run.
+        Path(url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
     connectable = engine_from_config(config.get_section(config.config_ini_section, {}), prefix="sqlalchemy.", poolclass=pool.NullPool)
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=connection.dialect.name == "sqlite")
