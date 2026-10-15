@@ -35,7 +35,7 @@ Có domain:     Internet ──443──▶ caddy ──▶ web ──▶ api �
 
 ```bash
 ssh root@<ip-vps>
-git clone -b claude/eloquent-gates-ck1hj2 git@github.com:khiempham2k1/test-project.git /opt/radar
+git clone -b main git@github.com:khiempham2k1/test-project.git /opt/radar
 cd /opt/radar
 ```
 
