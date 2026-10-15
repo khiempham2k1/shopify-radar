@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote_plus
 
+from radar import ytdlp
 from radar.collectors import exa
 from radar.collectors.base import (
     CollectedItem,
@@ -198,17 +199,14 @@ class YouTubeCollector(Collector):
     def fetch_yt_dlp(self) -> list[CollectedItem]:
         import yt_dlp
 
-        options = {
-            "quiet": True,
-            "no_warnings": True,
-            "js_runtimes": {"deno": {}, "node": {}},
-            "skip_download": True,
-            "extract_flat": "in_playlist",
-            "playlistend": self.limit,
+        options = ytdlp.options(
+            skip_download=True,
+            extract_flat="in_playlist",
+            playlistend=self.limit,
             # Search results only say "3 years ago"; this turns it into a timestamp
             # so ingest can drop old videos before they are listened to.
-            "extractor_args": {"youtubetab": {"approximate_date": [""]}},
-        }
+            extractor_args={"youtubetab": {"approximate_date": [""]}},
+        )
         items: list[CollectedItem] = []
         try:
             with yt_dlp.YoutubeDL(options) as ydl:
@@ -217,5 +215,5 @@ class YouTubeCollector(Collector):
                     items.extend(i for i in (video_entry_to_item(e) for e in info.get("entries") or [] if e) if i)
                     self.http.pause(1.0)
         except (yt_dlp.utils.DownloadError, yt_dlp.networking.exceptions.RequestError) as exc:
-            raise CollectError(str(exc)) from exc
+            raise CollectError(ytdlp.explain(str(exc))) from exc
         return items

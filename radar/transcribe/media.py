@@ -17,6 +17,7 @@ from typing import Any
 
 import requests
 
+from radar import ytdlp
 from radar.transcribe.groq_pool import INVALID_REST, GroqKeyPool, rest_from_response
 
 log = logging.getLogger(__name__)
@@ -112,9 +113,8 @@ def fetch_subtitles(url: str, work_dir: Path, langs: list[str]) -> Transcript | 
     """Manual subtitles first, then YouTube's automatic captions. None when neither exists."""
     import yt_dlp
 
-    options = {"quiet": True, "no_warnings": True, "no_color": True, "skip_download": True, "js_runtimes": {"deno": {}, "node": {}}}
     try:
-        with yt_dlp.YoutubeDL(options) as ydl:
+        with yt_dlp.YoutubeDL(ytdlp.options(skip_download=True)) as ydl:
             info = ydl.extract_info(url, download=False) or {}
             choice = pick_subtitle(info, langs)
             if choice is None:
@@ -141,7 +141,7 @@ def fetch_subtitles(url: str, work_dir: Path, langs: list[str]) -> Transcript | 
 
 def _plain(exc: Exception) -> str:
     """yt-dlp messages carry ANSI colour codes; strip them for the dashboard."""
-    return re.sub(r"\x1b\[[0-9;]*m", "", str(exc)).replace("ERROR: ", "").strip()
+    return ytdlp.explain(re.sub(r"\x1b\[[0-9;]*m", "", str(exc)).replace("ERROR: ", "").strip())
 
 
 def _lang_rank(path: Path, langs: list[str]) -> int:
@@ -152,7 +152,7 @@ def _lang_rank(path: Path, langs: list[str]) -> int:
 def video_duration(url: str) -> int:
     import yt_dlp
 
-    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "no_color": True, "js_runtimes": {"deno": {}, "node": {}}, "skip_download": True}) as ydl:
+    with yt_dlp.YoutubeDL(ytdlp.options(skip_download=True)) as ydl:
         info = ydl.extract_info(url, download=False) or {}
     return int(info.get("duration") or 0)
 
@@ -172,13 +172,7 @@ def download_audio(url: str, work_dir: Path) -> Path:
     import yt_dlp
 
     work_dir.mkdir(parents=True, exist_ok=True)
-    options = {
-        "quiet": True,
-        "no_warnings": True, "no_color": True, "js_runtimes": {"deno": {}, "node": {}},
-        "format": "bestaudio/best",
-        "outtmpl": str(work_dir / "source.%(ext)s"),
-        "max_filesize": 512 * 1024 * 1024,
-    }
+    options = ytdlp.options(format="bestaudio/best", outtmpl=str(work_dir / "source.%(ext)s"), max_filesize=512 * 1024 * 1024)
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             ydl.extract_info(url, download=True)

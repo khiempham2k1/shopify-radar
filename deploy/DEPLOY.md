@@ -29,7 +29,7 @@ Có domain:     Internet ──443──▶ caddy ──▶ web ──▶ api �
 | Quyền đọc repo | Repo private: dùng [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) (chỉ đọc) hoặc Personal Access Token. |
 | Các key và cookie | `ANTHROPIC_API_KEY`, `GROQ_API_KEYS`, cookie X, token Discord, `credential.json` của rdt-cli (lấy từ máy bạn đang chạy local). Google OAuth client nếu dùng domain và muốn đăng nhập Google. |
 
-**IP datacenter có thể bị chặn.** YouTube đôi khi đòi "Sign in to confirm you're not a bot", Reddit hoặc X có thể trả 403 với IP của nhà cung cấp VPS. Trang Sức khỏe nguồn sẽ báo nguồn nào lỗi. Nếu gặp, đặt `RADAR_HTTP_PROXY` (proxy residential) trong `.env`.
+**IP datacenter có thể bị chặn.** YouTube đôi khi đòi "Sign in to confirm you're not a bot", Reddit hoặc X có thể trả 403 với IP của nhà cung cấp VPS. Trang Sức khỏe nguồn sẽ báo nguồn nào lỗi. Với YouTube, cách sửa xem mục [Cookie YouTube](#cookie-youtube-khi-youtube-đòi-not-a-bot). Còn lại: đặt `RADAR_HTTP_PROXY` (proxy residential) trong `.env`.
 
 ## 1. Lấy code
 
@@ -70,7 +70,7 @@ nano .env
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Chỉ khi có domain và muốn đăng nhập Google (bước 4); để trống thì trang đăng nhập chỉ có mật khẩu |
 | `TWITTER_AUTH_TOKEN`, `TWITTER_CT0` | Cookie x.com của tài khoản radar (giống lúc chạy local) |
 | `DISCORD_TOKEN` | Token tài khoản Discord của radar (giống lúc chạy local) |
-| `RADAR_HTTP_PROXY` | Để trống, chỉ điền khi nguồn bị chặn IP |
+| `RADAR_HTTP_PROXY` | Để trống, chỉ điền khi nguồn bị chặn IP (áp dụng cả cho yt-dlp) |
 
 Không đổi `AUTH_DISABLED` (phải là `false` trên VPS), `NEXTAUTH_URL`, `WEB_PORT`, `COMPOSE_FILE`: script đặt các biến này theo cách chạy.
 
@@ -151,6 +151,23 @@ docker compose start api worker web
 Trang **Sức khỏe nguồn** (khi đăng nhập admin) hiện trạng thái công cụ và đăng nhập Reddit, X, Discord; `docker compose exec worker radar doctor` cũng kiểm tra được. Khi báo hết hạn:
 - **Reddit:** chép `credential.json` mới vào `secrets/rdt-cli/`.
 - **X / Discord:** sửa `.env`, rồi chạy `docker compose up -d worker`.
+- **YouTube:** xuất lại `cookies.txt` (mục dưới).
+
+### Cookie YouTube (khi YouTube đòi "not a bot")
+
+Từ IP của VPS, YouTube hay trả `Sign in to confirm you're not a bot`. Khi đó radar không đọc được phụ đề hoặc tải audio video. Cách sửa: cho yt-dlp dùng cookie của một **tài khoản Google riêng cho radar**. Đừng dùng tài khoản chính, vì YouTube có thể khóa tài khoản dùng cho tự động hóa.
+
+1. Trên máy tính, cài extension **Get cookies.txt LOCALLY** (Chrome) hoặc **cookies.txt** (Firefox).
+2. Mở **cửa sổ ẩn danh** (incognito) và đăng nhập youtube.com bằng tài khoản radar.
+3. Trong cùng tab đó, mở `https://www.youtube.com/robots.txt`. Dùng extension xuất cookie của `youtube.com` (định dạng Netscape) thành file `cookies.txt`.
+4. **Đóng ngay cửa sổ ẩn danh**, không đăng xuất. Nếu tiếp tục duyệt YouTube trong phiên đó, YouTube sẽ đổi cookie và file vừa xuất mất hiệu lực.
+5. Chép file lên VPS. Không cần khởi động lại, lượt chạy sau tự dùng:
+   ```bash
+   scp cookies.txt ubuntu@<ip-vps>:/home/shopifyradar/secrets/youtube/cookies.txt
+   ```
+6. Kiểm tra: `docker compose exec worker radar doctor` phải có dòng `Cookie YouTube: Có`. Chạy thử `docker compose exec worker radar videos`.
+
+Cookie thường dùng được vài tuần. Khi lỗi "not a bot" quay lại, làm lại các bước trên. Nếu vẫn bị chặn dù có cookie, dùng thêm `RADAR_HTTP_PROXY`.
 
 ## Sự cố thường gặp
 
@@ -164,4 +181,5 @@ Trang **Sức khỏe nguồn** (khi đăng nhập admin) hiện trạng thái c�
 | Đăng nhập Google báo `redirect_uri_mismatch` | Redirect URI ở bước 4 phải khớp chính xác `https://<domain>/api/auth/callback/google` |
 | Đăng nhập xong vẫn không thấy Giai đoạn 2 | Email chưa có trong `PHASE2_EMAILS`, sửa `.env` rồi `docker compose up -d web` |
 | Build dừng vì hết RAM | Kiểm tra swap: `swapon --show`; chạy lại `sudo bash deploy/setup-vps.sh` (cùng tham số lúc cài) |
-| YouTube/Reddit/X lỗi 403 hoặc "not a bot" | IP VPS bị chặn: đặt `RADAR_HTTP_PROXY`, hoặc chấp nhận dùng nguồn dự phòng (Reddit tự chuyển sang Exa khi rdt-cli lỗi) |
+| YouTube báo "Sign in to confirm you're not a bot" | IP VPS bị YouTube chặn: thêm cookie YouTube (mục Cookie YouTube), nếu vẫn lỗi thì thêm `RADAR_HTTP_PROXY` |
+| Reddit/X lỗi 403 | IP VPS bị chặn: đặt `RADAR_HTTP_PROXY`, hoặc dùng nguồn dự phòng (Reddit tự chuyển sang Exa khi rdt-cli lỗi) |

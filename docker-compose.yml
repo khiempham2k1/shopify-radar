@@ -34,10 +34,13 @@ services:
       DATABASE_URL: postgresql+psycopg://radar:${POSTGRES_PASSWORD}@postgres:5432/radar
       # discord-cli keeps its message store here, so each run only fetches new messages
       XDG_DATA_HOME: /data/xdg
+      YOUTUBE_COOKIES: /secrets/youtube/cookies.txt
     volumes:
       - workdata:/data
       # Cookie của tài khoản Reddit riêng cho radar (credential.json của rdt-cli)
       - ./secrets/rdt-cli:/root/.config/rdt-cli
+      # Cookie YouTube (cookies.txt) khi YouTube đòi xác minh "not a bot" trên VPS
+      - ./secrets/youtube:/secrets/youtube
     depends_on:
       postgres: {condition: service_healthy}
     restart: unless-stopped

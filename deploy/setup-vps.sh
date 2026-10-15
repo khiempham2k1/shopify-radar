@@ -111,7 +111,7 @@ else
 fi
 
 echo "==> 5. Thư mục"
-mkdir -p secrets/rdt-cli backups
+mkdir -p secrets/rdt-cli secrets/youtube backups
 chmod 700 secrets backups
 # Run with sudo: hand the files back to the user who called it, and let that user run docker.
 if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then

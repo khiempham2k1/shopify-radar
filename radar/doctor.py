@@ -15,6 +15,7 @@ from pathlib import Path
 
 import requests
 
+from radar import ytdlp
 from radar.config_loader import RadarConfig
 from radar.settings import get_settings
 
@@ -116,6 +117,16 @@ def run_doctor(config: RadarConfig, network: bool = False) -> list[Check]:
         js = shutil.which("deno") or shutil.which("node")
         checks.append(Check("JS runtime cho yt-dlp", "ok" if js else "warn", js or "Cần Node.js hoặc Deno để yt-dlp đọc YouTube"))
         checks.append(check_command("ffmpeg", ["ffmpeg", "-version"], "apt install ffmpeg"))
+        cookies = ytdlp.cookie_file()
+        checks.append(
+            Check(
+                "Cookie YouTube",
+                "ok",
+                f"Có ({cookies}, {credential_age_days(str(cookies))} ngày)"
+                if cookies
+                else "Chưa có (không bắt buộc; cần khi YouTube đòi xác minh 'not a bot' trên VPS)",
+            )
+        )
     checks += login_checks(config)
 
     if network:

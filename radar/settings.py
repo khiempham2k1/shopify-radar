@@ -70,6 +70,8 @@ class Settings:
     jina_reader_base: str = field(default_factory=lambda: _env("JINA_READER_BASE", "https://r.jina.ai/"))
     exa_mcp_url: str = field(default_factory=lambda: _env("EXA_MCP_URL", "https://mcp.exa.ai/mcp"))
     http_proxy: str = field(default_factory=lambda: _env("RADAR_HTTP_PROXY"))
+    # cookies.txt of the radar's YouTube session, for servers YouTube asks to "confirm you're not a bot".
+    youtube_cookies: Path = field(default_factory=lambda: Path(_env("YOUTUBE_COOKIES", str(ROOT / "secrets" / "youtube" / "cookies.txt"))))
 
     request_timeout: int = field(default_factory=lambda: _env_int("RADAR_REQUEST_TIMEOUT", 30))
 
