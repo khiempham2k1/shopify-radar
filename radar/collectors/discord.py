@@ -13,11 +13,27 @@ page sums them up in a Vietnamese digest (radar/ai/community.py).
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from radar.collectors.base import CollectedItem, CollectError, Collector, run_cli, to_datetime
 
 SYSTEM_TYPES = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18}  # joins, pins, boosts…
+
+
+CHANNEL_LINK = re.compile(r"discord(?:app)?\.com/channels/(\d+|@me)/(\d+)")
+
+
+def channel_entry(entry: Any) -> dict[str, str]:
+    """A channel from sources.yaml: an ID, a channel link copied from Discord
+    (https://discord.com/channels/<server>/<channel>), or {id|url, name}."""
+    if isinstance(entry, dict):
+        raw, name = str(entry.get("url") or entry.get("id") or ""), str(entry.get("name") or "")
+    else:
+        raw, name = str(entry or ""), ""
+    match = CHANNEL_LINK.search(raw)
+    channel_id = match.group(2) if match else raw.strip()
+    return {"id": channel_id if channel_id.isdigit() else "", "name": name}
 
 
 def message_to_item(row: dict[str, Any], channel_name: str = "") -> CollectedItem | None:
@@ -54,8 +70,7 @@ class DiscordCollector(Collector):
     default_backends = ["discord-cli"]
 
     def fetch_discord_cli(self) -> list[CollectedItem]:
-        channels = [c if isinstance(c, dict) else {"id": str(c)} for c in self.source.get("channels") or []]
-        channels = [c for c in channels if c.get("id")]
+        channels = [c for c in map(channel_entry, self.source.get("channels") or []) if c["id"]]
         if not channels:
             raise CollectError("Chưa khai báo kênh Discord (channels trong sources.yaml)")
         hours = int(self.source.get("hours", 26))  # a little over a day, so nothing falls between two digests

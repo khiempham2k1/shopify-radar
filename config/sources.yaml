@@ -160,7 +160,6 @@ sources:
   # Discord đọc bằng discord-cli với TÀI KHOẢN RIÊNG CỦA RADAR (DISCORD_TOKEN trong .env).
   # Tài khoản này vào server cộng đồng như một thành viên. Discord không cho phép tự động hóa bằng
   # tài khoản thường và có thể khóa tài khoản: chỉ đọc, ít kênh, mỗi 2 giờ.
-  # Lấy ID kênh: Discord → Cài đặt → Nâng cao → bật Developer Mode → chuột phải vào kênh → Copy Channel ID.
   - id: discord
     name: Discord
     type: discord
@@ -169,7 +168,9 @@ sources:
     keyword_filter: false
     max_age_days: 7
     limit: 300                    # tin tối đa mỗi kênh mỗi lần
-    channels: []                  # ví dụ: - {id: "123456789012345678", name: "general"}
+    # Dán link kênh (chuột phải vào kênh → Copy Link) hoặc ID kênh. Link có dạng
+    # https://discord.com/channels/<ID server>/<ID kênh>: radar lấy ID kênh (số thứ hai).
+    channels: []                  # ví dụ: - {url: "https://discord.com/channels/111/222", name: "general"}
 
   - id: youtube
     name: YouTube

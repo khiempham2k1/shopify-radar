@@ -115,3 +115,13 @@ def test_quiet_discord_channel_is_not_an_error(monkeypatch):
     collector.http.pause = lambda *_: None
     result = collector.collect()
     assert result.status == "ok" and result.items == []
+
+
+def test_channel_from_link_or_id():
+    from radar.collectors.discord import channel_entry
+
+    link = "https://discord.com/channels/1433454270136582280/1433454271415713959"
+    assert channel_entry(link) == {"id": "1433454271415713959", "name": ""}
+    assert channel_entry({"url": link, "name": "partners"}) == {"id": "1433454271415713959", "name": "partners"}
+    assert channel_entry({"id": "222", "name": "general"}) == {"id": "222", "name": "general"}
+    assert channel_entry(222)["id"] == "222" and channel_entry("not a channel")["id"] == ""
