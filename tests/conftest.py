@@ -95,6 +95,9 @@ def default_responder(kwargs: dict[str, Any]):
                 "open_questions": [{"text": "Có cách nào tăng tốc editor?", "item_ids": ids[:1]}],
             }
         )
+    if "translations" in props:
+        ids = [int(i) for i in re.findall(r"\[id=(\d+)\]", user)]
+        return make_message({"translations": [{"id": i, "vi": f"Bản dịch {i}"} for i in ids]})
     if set(props) == {"items"}:
         ids = [int(i) for i in re.findall(r"\[id=(\d+)\]", user)]
         return make_message({"items": [{"id": i, "summary": f"Tóm tắt chủ đề {i}"} for i in ids]})

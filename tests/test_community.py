@@ -84,6 +84,9 @@ def test_digest_and_thread_summaries(session, config, fake_anthropic):
     claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
     result = community.refresh(session, config, claude)
     assert result["summarized"] == 1 and result["digest"]
+    assert result["translated"] == 6  # every stored Discord message, the 2-day-old one too
+    message = session.scalar(select(community.Item).where(community.Item.external_id == "0"))
+    assert message.summary == f"Bản dịch {message.id}"
     thread = session.scalar(select(community.Item).where(community.Item.source_id == "shopify-community"))
     assert thread.summary.startswith("Tóm tắt chủ đề")
     report = session.get(Report, result["digest"])
@@ -117,7 +120,7 @@ def test_next_digest_holds_only_new_talk(session, config, fake_anthropic):
 
 def test_no_digest_without_talk(session, config, fake_anthropic):
     claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
-    assert community.refresh(session, config, claude) == {"summarized": 0, "digest": None}
+    assert community.refresh(session, config, claude) == {"translated": 0, "summarized": 0, "digest": None}
 
 
 def test_quiet_discord_channel_is_not_an_error(monkeypatch):
@@ -143,3 +146,24 @@ def test_channel_from_link_or_id():
     assert channel_entry({"url": link, "name": "partners"}) == {"id": "1433454271415713959", "name": "partners"}
     assert channel_entry({"id": "222", "name": "general"}) == {"id": "222", "name": "general"}
     assert channel_entry(222)["id"] == "222" and channel_entry("not a channel")["id"] == ""
+
+
+def test_translation_splits_batch_on_max_tokens(session, config, fake_anthropic):
+    from tests.conftest import default_responder, make_message
+
+    seed_talk(session, config)
+    calls = []
+
+    def responder(kwargs):
+        if "translations" in kwargs["output_config"]["format"]["schema"]["properties"]:
+            calls.append(kwargs)
+            if kwargs["messages"][0]["content"].count("[id=") > 3:
+                message = make_message({"translations": []})
+                message.stop_reason = "max_tokens"
+                return message
+        return default_responder(kwargs)
+
+    fake_anthropic.messages.responder = responder
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    assert community.translate_messages(session, config, claude) == 6
+    assert len(calls) == 3  # 6 messages: too long, then 3 + 3

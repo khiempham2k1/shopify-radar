@@ -51,6 +51,7 @@ community:
   digest_every_hours: 6           # viết bản tóm tắt mới tối đa mỗi chừng này giờ (24 = mỗi ngày một bản gồm cả ngày)
   digest_effort: high             # tóm tắt thảo luận
   summary_effort: high            # tóm tắt từng chủ đề Shopify Community
+  translate_effort: high          # dịch từng tin Discord sang tiếng Việt
   max_chars: 80000                # giới hạn độ dài tin gửi Claude cho mỗi bản tóm tắt
 
 video:

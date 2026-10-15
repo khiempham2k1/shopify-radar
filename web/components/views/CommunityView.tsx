@@ -143,7 +143,7 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
   return (
     <div className="panel">
       <h2>Discord</h2>
-      <p className="sub">Tin nhắn trong bản tóm tắt đang xem, theo kênh (nguyên văn). Nhãn “mới”: đến sau bản tóm tắt.</p>
+      <p className="sub">Tin nhắn trong bản tóm tắt đang xem, theo kênh, dịch sang tiếng Việt (bấm “Bản gốc” để xem nguyên văn). Nhãn “mới”: đến sau bản tóm tắt.</p>
       {channels.length === 0 ? (
         <Empty>Chưa có tin nhắn Discord nào.</Empty>
       ) : (
@@ -159,11 +159,17 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
                 <li key={m.id}>
                   {m.pending && <span className="c-new">mới</span>}
                   <span className="mono muted">{m.when ? fmtDateTime(m.when) : ""}</span> <b>{m.author}</b>
-                  {m.is_reply && <span className="muted"> ↪</span>}: {m.text}{" "}
+                  {m.is_reply && <span className="muted"> ↪</span>}: {m.summary || m.text}{" "}
                   <a href={m.url} target="_blank" rel="noopener noreferrer" className="c-link" aria-label="Mở tin trên Discord">
                     ↗
                   </a>
                   {m.reactions > 0 && <span className="muted"> · {fmtNumber(m.reactions)} reaction</span>}
+                  {m.summary && m.summary !== m.text && (
+                    <details className="c-orig">
+                      <summary>Bản gốc</summary>
+                      {m.text}
+                    </details>
+                  )}
                 </li>
               ))}
             </ul>

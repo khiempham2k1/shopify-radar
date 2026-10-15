@@ -4,6 +4,8 @@ These items are not classified or rated one by one. Instead:
 
 - every Shopify Community thread gets a short Vietnamese summary (batched
   Claude calls, community.summary_effort);
+- every Discord message gets a Vietnamese translation, kept in `summary`
+  (the page shows it, with the original one click away; community.translate_effort);
 - a Vietnamese digest is written at most every `digest_every_hours` and
   stored as a Report with kind "community": overview, topics, open questions,
   each pointing at the messages it comes from. Each digest covers only what
@@ -23,7 +25,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from radar.ai.client import CallSpec, ClaudeClient
+from radar.ai.client import AITruncated, CallSpec, ClaudeClient
 from radar.config_loader import RadarConfig, load_prompt
 from radar.models import Item, Report, Source, utcnow
 from radar.settings import get_settings
@@ -80,6 +82,24 @@ SUMMARY_SCHEMA = {
         }
     },
     "required": ["items"],
+    "additionalProperties": False,
+}
+
+
+TRANSLATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "translations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"id": {"type": "integer"}, "vi": {"type": "string"}},
+                "required": ["id", "vi"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["translations"],
     "additionalProperties": False,
 }
 
@@ -245,8 +265,58 @@ def summarize_threads(session: Session, config: RadarConfig, claude: ClaudeClien
     return done
 
 
+def translate_messages(session: Session, config: RadarConfig, claude: ClaudeClient, limit: int = 600, batch: int = 30) -> int:
+    """Vietnamese translation of recent Discord messages that have none yet."""
+    sources = community_sources(session)
+    if not sources:
+        return 0
+    since = utcnow() - timedelta(days=3)
+    pending = list(
+        session.scalars(
+            select(Item)
+            .where(
+                Item.source_id.in_(list(sources)),
+                Item.media_type == "message",
+                or_(Item.summary == "", Item.summary.is_(None)),
+                Item.first_seen >= since,
+            )
+            .order_by(Item.first_seen.desc())
+            .limit(limit)
+        )
+    )
+    effort = config.section("community").get("translate_effort", "high")
+    done = 0
+    for start in range(0, len(pending), batch):
+        done += _translate_chunk(session, claude, pending[start : start + batch], effort)
+    return done
+
+
+def _translate_chunk(session: Session, claude: ClaudeClient, chunk: list[Item], effort: str) -> int:
+    listing = "\n\n".join(f"[id={i.id}] {(i.content or '').strip()[:1500]}" for i in chunk)
+    prompt = load_prompt("community_translate", count=len(chunk), items=listing)
+    try:
+        data = claude.call_json(CallSpec("community", prompt.system, prompt.user, TRANSLATE_SCHEMA, effort=effort, max_tokens=16000))
+    except AITruncated:
+        if len(chunk) == 1:
+            log.warning("Translation of message %s hit max_tokens; left untranslated", chunk[0].id)
+            return 0
+        middle = len(chunk) // 2
+        return _translate_chunk(session, claude, chunk[:middle], effort) + _translate_chunk(session, claude, chunk[middle:], effort)
+    by_id = {i.id: i for i in chunk}
+    done = 0
+    for row in data.get("translations", []):
+        item = by_id.get(row.get("id"))
+        text = (row.get("vi") or "").strip()
+        if item is not None and text:
+            item.summary = text
+            done += 1
+    session.flush()
+    return done
+
+
 def refresh(session: Session, config: RadarConfig, claude: ClaudeClient, force: bool = False) -> dict[str, Any]:
-    """Run step: summarize new threads, rebuild the digest when due."""
+    """Run step: translate new Discord messages, summarize new threads, rebuild the digest when due."""
+    translated = translate_messages(session, config, claude)
     summarized = summarize_threads(session, config, claude)
     report = build_digest(session, config, claude) if (force or digest_due(session, config)) else None
-    return {"summarized": summarized, "digest": report.id if report else None}
+    return {"translated": translated, "summarized": summarized, "digest": report.id if report else None}
