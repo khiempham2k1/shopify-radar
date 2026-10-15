@@ -31,6 +31,8 @@ export interface Item {
   last_seen: string | null;
   seen_count: number;
   score: number;
+  /** 0–10: interaction vs. the same source, decaying with age. The Feed sorts by it. */
+  hot: number;
   metrics: Record<string, number>;
   extra: Record<string, unknown>;
   keyword_groups: string[];

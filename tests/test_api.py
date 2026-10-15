@@ -33,8 +33,10 @@ def test_overview(client):
 
 def test_feed_filters_and_order(client):
     feed = client.get("/api/items", params={"view": "feed", "mode": "all"}).json()
-    scores = [i["score"] for i in feed["items"]]
-    assert scores == sorted(scores, reverse=True) and feed["total"] == len(feed["items"])
+    hot = [i["hot"] for i in feed["items"]]
+    assert hot == sorted(hot, reverse=True) and feed["total"] == len(feed["items"])  # Feed: hottest first
+    by_score = [i["score"] for i in client.get("/api/items", params={"view": "feed", "sort": "score"}).json()["items"]]
+    assert by_score == sorted(by_score, reverse=True)
     assert all(i["source"]["kind"] != "platform" for i in feed["items"])
     neg = client.get("/api/items", params={"view": "feed", "sentiment": "neg"}).json()["items"]
     assert neg and all(i["sentiment"] == "neg" for i in neg)

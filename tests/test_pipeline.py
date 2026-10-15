@@ -371,3 +371,35 @@ def test_classify_stores_who_is_affected(session, config, fake_anthropic):
     assert "affects" in CLASSIFY_SCHEMA["properties"]["results"]["items"]["required"]
     assert affects_value(["merchant", "bogus", "theme", "theme"]) == "theme,merchant"
     assert affects_value([]) is None and affects_value(None) is None
+
+
+def test_hot_ranks_within_source_and_decays(session, config):
+    from radar.scoring import engagement_percentiles, hot_score
+
+    now = utcnow()
+
+    def item(source, url, metrics, hours_ago=1):
+        title = "topic " + "".join(chr(97 + (ord(c) % 26)) for c in url[-6:]) * 2  # unrelated titles: no cross-source bonus
+        row = Item(source_id=source, url=url, title=title, metrics=metrics, keyword_matched=True,
+                   first_seen=now - timedelta(hours=hours_ago), last_seen=now, published_at=now - timedelta(hours=hours_ago))
+        session.add(row)
+        return row
+
+    big_video = item("youtube", "https://y/1", {"views": 50000})
+    small_video = item("youtube", "https://y/2", {"views": 900})
+    top_post = item("reddit", "https://r/1", {"upvotes": 40, "comments": 12})
+    quiet_post = item("reddit", "https://r/2", {"upvotes": 1})
+    old_top = item("reddit", "https://r/3", {"upvotes": 500}, hours_ago=96)
+    article = item("web-search", "https://w/1", {})
+    session.flush()
+    rescore(session, config, now=now)
+
+    # Each source ranks against itself: Reddit's best today is about as hot as YouTube's best,
+    # though 50,000 views dwarf 40 upvotes in raw numbers.
+    assert top_post.hot > quiet_post.hot and big_video.hot > small_video.hot
+    # Popular but four days old cools down below today's posts.
+    assert old_top.hot < top_post.hot and old_top.hot < quiet_post.hot
+    # No metrics at all: neutral, below the top of other sources.
+    assert 0 < article.hot < top_post.hot
+    assert engagement_percentiles([quiet_post])[quiet_post.id] == 1.0
+    assert hot_score(1.0, 0, now, now, 24) == 10.0 and hot_score(1.0, 0, now - timedelta(hours=24), now, 24) == 5.0

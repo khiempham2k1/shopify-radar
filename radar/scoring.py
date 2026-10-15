@@ -10,6 +10,11 @@
 
 Items that mention a priority topic (config/priorities.txt) get
 scoring.priority_boost added on top, capped at 10.
+
+Hot (0–10), what the Feed sorts by: how much interaction an item got compared
+with other items from the same source (a percentile, so YouTube views do not
+drown Reddit upvotes), plus a bonus when other sources carry the same story,
+halved every scoring.hot_half_life_hours since it was published.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from radar.config_loader import RadarConfig
@@ -42,8 +47,8 @@ def similar(a: set[str], b: set[str], threshold: float = 0.5) -> bool:
     return len(a & b) / len(a | b) >= threshold
 
 
-def engagement(metrics: dict[str, Any]) -> float:
-    weighted = (
+def weighted_engagement(metrics: dict[str, Any]) -> float:
+    return float(
         (metrics.get("upvotes") or 0)
         + (metrics.get("points") or 0)
         + (metrics.get("likes") or 0)
@@ -51,7 +56,35 @@ def engagement(metrics: dict[str, Any]) -> float:
         + 3 * (metrics.get("retweets") or 0)
         + (metrics.get("views") or 0) / 100
     )
-    return min(1.0, math.log10(1 + weighted) / 3)  # ~1000 weighted interactions → 1.0
+
+
+def engagement(metrics: dict[str, Any]) -> float:
+    return min(1.0, math.log10(1 + weighted_engagement(metrics)) / 3)  # ~1000 weighted interactions → 1.0
+
+
+def engagement_percentiles(items: list[Item]) -> dict[int, float]:
+    """Per source: 1.0 for the most-interacted item, down to ~0 for the least.
+    Items with no interaction get 0.05; a source that reports no metrics at all
+    (web pages, RSS) gets a neutral 0.3 so recency still ranks them."""
+    by_source: dict[str, list[tuple[float, int]]] = {}
+    for item in items:
+        by_source.setdefault(item.source_id, []).append((weighted_engagement(item.metrics or {}), item.id))
+    out: dict[int, float] = {}
+    for rows in by_source.values():
+        positive = sorted(r for r in rows if r[0] > 0)
+        for rank, (_, item_id) in enumerate(positive, start=1):
+            out[item_id] = rank / len(positive)
+        empty = 0.05 if positive else 0.3
+        for value, item_id in rows:
+            if value <= 0:
+                out[item_id] = empty
+    return out
+
+
+def hot_score(percentile: float, sources_elsewhere: int, age_start: datetime, now: datetime, half_life_hours: float) -> float:
+    heat = min(1.0, percentile + 0.15 * sources_elsewhere)
+    age_hours = max(0.0, (now - _aware(age_start)).total_seconds() / 3600)
+    return round(10 * heat * 0.5 ** (age_hours / half_life_hours), 2)
 
 
 def recency(first_seen: datetime, now: datetime, half_life_hours: float, published_at: datetime | None = None) -> float:
@@ -79,6 +112,7 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
     half_life = float(config.scoring.get("recency_half_life_hours", 48))
     min_score = float(config.ai.get("min_score", 0.5))
     boost = float(config.scoring.get("priority_boost", 2.0))
+    hot_half_life = float(config.scoring.get("hot_half_life_hours", 24))
     since = now - timedelta(days=days)
     items = list(session.scalars(select(Item).where(Item.last_seen >= since)))
     best = dict(
@@ -91,6 +125,7 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
     tokens = {item.id: title_tokens(item.title) for item in items}
     window = now - timedelta(hours=72)
     recent_items = [i for i in items if _aware(i.first_seen) >= window]
+    percentiles = engagement_percentiles(items)
 
     for item in items:
         # Recomputed every run so edits to priorities.txt apply to recent items too.
@@ -112,6 +147,12 @@ def rescore(session: Session, config: RadarConfig, days: int = 14, now: datetime
         cross = min(1.0, len(others) / 3)
         score = compute_score(relevance, engagement(item.metrics or {}), cross, recency(item.first_seen, now, half_life, item.published_at), weights)
         item.score = min(10.0, round(score + boost, 2)) if item.priority else score
+        # Same story elsewhere: similar titles in other sources, plus merged duplicates (extra.also).
+        elsewhere = others | {a.get("source") for a in (item.extra or {}).get("also", []) if a.get("source") != item.source_id}
+        started = min(_aware(item.first_seen), _aware(item.published_at)) if item.published_at else item.first_seen
+        item.hot = hot_score(percentiles.get(item.id, 0.0), len(elsewhere - {None}), started, now, hot_half_life)
+    # Items outside the window are not rescored; they are no longer hot.
+    session.execute(update(Item).where(Item.last_seen < since, Item.hot > 0).values(hot=0.0).execution_options(synchronize_session=False))
     session.flush()
     return len(items)
 

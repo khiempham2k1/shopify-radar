@@ -255,7 +255,7 @@ Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.m
 | Dashboard (8 màn hình, đăng nhập Google) | `web/` | `npm run build`, lint, typecheck; chạy thử với dữ liệu mẫu ở desktop, mobile và dark mode |
 | Docker Compose | `docker-compose.yml`, `docker/Dockerfile`, `web/Dockerfile` | Đã build cả hai image và chạy đủ 4 container (postgres, api, worker, web): migration, các trang web, proxy, `radar doctor`, một lượt `radar run`. Môi trường phát triển chặn kho gói Debian và GitHub, nên bản build thử thay `apt install ffmpeg` bằng ffmpeg tĩnh và lấy `rdt-cli` 0.4.1 từ PyPI; Dockerfile trong repo giữ nguyên |
 
-74 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
+76 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
 
 **Chưa kiểm tra được với dữ liệu thật:** môi trường phát triển bị chặn mạng tới Shopify, Reddit, X, YouTube, Exa, Jina, Hacker News và Groq, và không có Anthropic API key. Lần chạy đầu trên server nội bộ cần xem kỹ trang Sức khỏe nguồn. Riêng Shopify Changelog, Shopify Editions và Shopify Community, cách tách nội dung trang có thể cần chỉnh theo HTML thật (`link_pattern`, cách tách heading).
 
@@ -273,5 +273,6 @@ Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.m
 - Trang Chi phí AI tách thành màn hình riêng.
 - Trọng tâm chuyển sang theme (quyết định sau khi chạy thử): `interests.txt`, `keywords.txt`, truy vấn và prompt chỉ giữ những gì ảnh hưởng tới theme; thay đổi chỉ dành cho app bị bỏ qua, trừ app block và theme app extension. Nguồn Shopify news vẫn tắt vì là tin doanh nghiệp.
 - Thêm nguồn `x-official` (@ShopifyDevs, @ShopifyEng, @Shopify) vào trang Thay đổi nền tảng thay vì menu riêng, và gộp trùng giữa mọi nguồn bằng bảng `item_keys` (URL chuẩn hóa, tweet id, link và nội dung với nguồn thông báo).
+- Feed xếp theo độ hot (tương tác so với cùng nguồn, giảm theo thời gian) thay vì điểm tổng hợp.
 - Phân loại thêm trường "ảnh hưởng tới" (theme / partner / merchant), lọc được trên trang Feed và Thay đổi nền tảng. Storefront API chỉ giữ phần theme dùng tới; Hydrogen và headless bị bỏ qua.
 - Thêm sau khi chạy thử thật: chỉ giữ thông tin mới (`freshness.max_age_days`, mặc định 30 ngày; độ mới tính từ ngày đăng thật) và chủ đề ưu tiên (`config/priorities.txt`, sửa trên trang Cài đặt).

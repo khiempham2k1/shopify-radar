@@ -11,12 +11,18 @@ import { Empty, ErrorBox, Loading } from "../States";
 const PAGE = 30;
 const MODES = [
   { key: "new", label: "Mới", hint: "trong 6 giờ qua" },
-  { key: "hot", label: "Đang nổi", hint: "điểm cao trong 48 giờ qua" },
+  { key: "hot", label: "Đang nổi", hint: "độ hot cao trong 48 giờ qua" },
   { key: "today", label: "Hôm nay", hint: "từ 0 giờ hôm nay" },
   { key: "week", label: "Tuần này", hint: "trong 7 ngày qua" },
   { key: "all", label: "Tất cả", hint: "trong 60 ngày qua" },
 ] as const;
 type Mode = (typeof MODES)[number]["key"];
+const SORTS = [
+  { key: "hot", label: "Độ hot", hint: "tương tác so với các bài cùng nguồn, giảm dần theo thời gian" },
+  { key: "score", label: "Liên quan", hint: "điểm tổng hợp: mức liên quan, tương tác, độ mới" },
+  { key: "new", label: "Mới nhất", hint: "theo ngày đăng" },
+] as const;
+type Sort = (typeof SORTS)[number]["key"];
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -39,6 +45,7 @@ export function FeedView() {
   const [sentiment, setSentiment] = useState("");
   const [priorityOnly, setPriorityOnly] = useState(false);
   const [affects, setAffects] = useState("");
+  const [sort, setSort] = useState<Sort>("hot");
 
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
@@ -48,7 +55,7 @@ export function FeedView() {
   const [tick, setTick] = useState(0);
 
   const baseQuery = useMemo(() => {
-    const p = new URLSearchParams({ view: "feed", mode, limit: String(PAGE) });
+    const p = new URLSearchParams({ view: "feed", mode, sort, limit: String(PAGE) });
     if (q) p.set("q", q);
     if (source) p.set("source", source);
     if (tag) p.set("tag", tag);
@@ -56,7 +63,7 @@ export function FeedView() {
     if (priorityOnly) p.set("priority", "true");
     if (affects) p.set("affects", affects);
     return p.toString();
-  }, [mode, q, source, tag, sentiment, priorityOnly, affects]);
+  }, [mode, sort, q, source, tag, sentiment, priorityOnly, affects]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -183,6 +190,13 @@ export function FeedView() {
           ))}
         </select>
         <AffectsSelect value={affects} onChange={setAffects} />
+        <select className="field" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sắp xếp">
+          {SORTS.map((s) => (
+            <option key={s.key} value={s.key} title={s.hint}>
+              Xếp theo {s.label.toLowerCase()}
+            </option>
+          ))}
+        </select>
         <select className="field" value={sentiment} onChange={(e) => setSentiment(e.target.value)} aria-label="Cảm xúc">
           <option value="">Mọi cảm xúc</option>
           <option value="neg">Tiêu cực</option>
@@ -204,14 +218,14 @@ export function FeedView() {
         ) : (
           <div className="list">
             {items.map((item) => (
-              <FeedRow key={item.id} item={item} onDismiss={dismiss} />
+              <FeedRow key={item.id} item={item} onDismiss={dismiss} showHot={sort === "hot"} />
             ))}
           </div>
         )}
         {!loading && items.length > 0 && (
           <div className="more">
             <span>
-              Đang hiện {fmtNumber(items.length)} / {fmtNumber(total)} item · xếp theo điểm
+              Đang hiện {fmtNumber(items.length)} / {fmtNumber(total)} item · xếp theo {SORTS.find((s) => s.key === sort)!.label.toLowerCase()}
             </span>
             {items.length < total && (
               <button type="button" className="btn" onClick={loadMore} disabled={loadingMore}>

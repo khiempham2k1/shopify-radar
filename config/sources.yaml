@@ -46,8 +46,9 @@ video:
 scoring:
   weights: {relevance: 0.5, engagement: 0.2, cross_source: 0.15, recency: 0.15}
   recency_half_life_hours: 48
-  hot_threshold: 5.0              # điểm ≥ mức này và còn mới trong 48 giờ = "Đang nổi"
+  hot_threshold: 5.0              # độ hot ≥ mức này (trong 48 giờ) = chế độ "Đang nổi" ở Feed
   todo_threshold: 7.0             # thảo luận điểm ≥ mức này vào danh sách "Cần xử lý"
+  hot_half_life_hours: 24         # "độ hot" (Feed xếp theo) giảm một nửa sau mỗi chừng này giờ kể từ khi đăng
   priority_boost: 2.0             # cộng thêm cho item nhắc tới chủ đề trong priorities.txt (tối đa 10)
 
 sources:

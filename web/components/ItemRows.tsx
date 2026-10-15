@@ -164,7 +164,18 @@ export function sevClass(score: number) {
   return score >= 7.8 ? "sev-high" : score >= 6.5 ? "sev-med" : "sev-low";
 }
 
-export function FeedRow({ item, compact = false, onDismiss }: { item: Item; compact?: boolean; onDismiss?: (item: Item) => void }) {
+export function FeedRow({
+  item,
+  compact = false,
+  onDismiss,
+  showHot = false,
+}: {
+  item: Item;
+  compact?: boolean;
+  onDismiss?: (item: Item) => void;
+  /** Show the hot score (Feed sorted by hotness) instead of the overall score. */
+  showHot?: boolean;
+}) {
   const { email } = useUser();
   const date = item.published_at || item.first_seen;
   const duration = (typeof item.extra?.duration === "number" ? item.extra.duration : null) ?? item.transcript?.duration_s ?? null;
@@ -195,9 +206,15 @@ export function FeedRow({ item, compact = false, onDismiss }: { item: Item; comp
       </div>
       <div className="side">
         <TranscriptBadge item={item} />
-        <span className="score" title="Điểm tổng hợp">
-          {item.score.toFixed(1)}
-        </span>
+        {showHot ? (
+          <span className="score" title="Độ hot: tương tác so với các bài cùng nguồn, giảm dần theo thời gian">
+            🔥 {item.hot.toFixed(1)}
+          </span>
+        ) : (
+          <span className="score" title="Điểm tổng hợp">
+            {item.score.toFixed(1)}
+          </span>
+        )}
         {item.sentiment && <span className={`sent ${item.sentiment}`}>{SENTIMENT[item.sentiment]}</span>}
         {!compact && onDismiss && email && (
           <button type="button" className="btn" onClick={() => onDismiss(item)}>

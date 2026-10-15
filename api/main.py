@@ -139,6 +139,7 @@ def serialize_item(item: Item, analyzed_ids: set[int], full: bool = False) -> di
         "last_seen": iso(item.last_seen),
         "seen_count": item.seen_count,
         "score": item.score,
+        "hot": item.hot,
         "metrics": item.metrics or {},
         "extra": item.extra or {},
         "keyword_groups": item.keyword_groups or [],
@@ -216,6 +217,8 @@ def me(user: UserDep) -> dict[str, str]:
 
 Mode = Literal["new", "hot", "today", "week", "all"]
 View = Literal["platform", "feed", "all"]
+# hot: interaction vs. the same source, decaying with age; score: overall relevance; new: newest first.
+Sort = Literal["hot", "score", "new"]
 
 
 @app.get("/api/items")
@@ -232,6 +235,7 @@ def list_items(
     status: Literal["new", "doing", "done", "dismissed"] | None = None,
     q: str | None = None,
     priority: bool = False,
+    sort: Sort | None = None,
     days: int = Query(60, ge=1, le=365),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -259,7 +263,7 @@ def list_items(
     if mode == "new":
         conditions.append(Item.first_seen >= now - timedelta(hours=6))
     elif mode == "hot":
-        conditions += [Item.score >= hot, Item.last_seen >= now - timedelta(hours=48)]
+        conditions += [Item.hot >= hot, Item.last_seen >= now - timedelta(hours=48)]
     elif mode == "today":
         conditions.append(Item.first_seen >= local_midnight())
     elif mode == "week":
@@ -287,7 +291,8 @@ def list_items(
     stmt = stmt.where(*conditions)
     total = session.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     newest = func.coalesce(Item.published_at, Item.first_seen).desc()
-    order = [newest] if view == "platform" else [Item.score.desc(), newest]
+    sort = sort or ("new" if view == "platform" else "hot")
+    order = {"new": [newest], "score": [Item.score.desc(), newest], "hot": [Item.hot.desc(), Item.score.desc(), newest]}[sort]
     items = list(session.scalars(stmt.order_by(*order).limit(limit).offset(offset)).unique())
     done = analyzed_ids(session, [i.id for i in items])
     return {"items": [serialize_item(i, done) for i in items], "total": total or 0}

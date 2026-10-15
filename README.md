@@ -25,7 +25,7 @@ Mỗi lần chạy (mặc định mỗi 2 giờ, xem `schedule.collect` trong `c
 4. **Lọc từ khóa** theo cú pháp của TrendRadar (`config/keywords.txt`). Item của nguồn nền tảng luôn được gửi cho Claude.
 5. **Claude phân loại** theo lô (`claude-opus-5-5`, effort `low`). Kết quả gồm tag lấy từ `interests.txt`, điểm liên quan, cảm xúc, **ảnh hưởng tới ai** (Theme: code theme; Partner: công ty với tư cách nhà bán theme trên Theme Store; Merchant: người dùng theme), mức ảnh hưởng, hạn chót và tóm tắt tiếng Việt. Thay đổi chỉ dành cho app và headless (Hydrogen) bị bỏ qua; Storefront API chỉ giữ khi theme dùng tới. Mỗi item chỉ gửi một lần. Lô nào lỗi thì item vẫn hiển thị nhờ khớp từ khóa và được gửi lại ở lần chạy sau.
 6. **Video YouTube** lấy phụ đề trước. Không có phụ đề mới dùng Groq Whisper. Claude tóm tắt (effort `medium`), bản tóm tắt thay cho nội dung item, rồi item được phân loại lại.
-7. **Chấm điểm** 0–10 dựa trên mức liên quan, tương tác, số nguồn cùng nhắc và độ mới (tính từ ngày đăng thật).
+7. **Chấm điểm** 0–10 dựa trên mức liên quan, tương tác, số nguồn cùng nhắc và độ mới (tính từ ngày đăng thật). Feed xếp theo **độ hot** (0–10): mức tương tác so với các bài cùng nguồn (để view YouTube không lấn át upvote Reddit), cộng thêm khi nhiều nguồn cùng nhắc, giảm một nửa sau mỗi `scoring.hot_half_life_hours` (mặc định 24 giờ). Có thể chuyển sang xếp theo mức liên quan hoặc mới nhất.
 8. **Báo cáo tuần** chạy sáng thứ Hai (effort `high`).
 
 ## Quyền xem

@@ -74,6 +74,8 @@ class Item(Base):
     keyword_groups: Mapped[list] = mapped_column(JSONType, default=list)
     keyword_matched: Mapped[bool] = mapped_column(Boolean, default=False)
     score: Mapped[float] = mapped_column(Float, default=0.0)
+    # 0–10: interaction vs. the same source, decaying with age (radar/scoring.py). Feed sorts by it.
+    hot: Mapped[float] = mapped_column(Float, default=0.0, index=True)
     # Priority topics from config/priorities.txt this item mentions, comma-joined.
     priority: Mapped[str | None] = mapped_column(String(300), nullable=True, index=True)
 
