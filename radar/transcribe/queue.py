@@ -105,7 +105,7 @@ def summarize(item: Item, transcript: media.Transcript, config: RadarConfig, cla
         transcript=transcript_for_prompt(transcript.segments),
     )
     return claude.call_json(
-        CallSpec("summarize", prompt.system, prompt.user, SUMMARY_SCHEMA, effort=config.ai.get("summarize_effort", "medium"), max_tokens=8000)
+        CallSpec("summarize", prompt.system, prompt.user, SUMMARY_SCHEMA, effort=config.ai.get("summarize_effort", "high"), max_tokens=16000)
     )
 
 

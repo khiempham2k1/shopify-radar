@@ -231,7 +231,7 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
 | Hạng mục | Quyết định |
 |---|---|
 | Stack | Python (FastAPI, worker) + Next.js (dashboard) + Postgres, chạy bằng Docker Compose |
-| AI | Claude (`claude-opus-5-5`) cho phân loại, tóm tắt và báo cáo tuần; Groq chỉ dùng cho speech-to-text |
+| AI | Claude cho phân loại, tóm tắt và báo cáo tuần (ban đầu `claude-opus-5-5`; sau khi chạy thử đổi mặc định sang `claude-haiku-5-5`, effort `high` cho mọi bước); Groq chỉ dùng cho speech-to-text |
 | Thu thập dữ liệu | Công cụ miễn phí theo Agent Reach (Exa MCP, Jina Reader, `yt-dlp`, `rdt-cli`, `twitter-cli`, `feedparser`, `gh`) |
 | Nơi chạy | Server nội bộ |
 | Phạm vi sử dụng | Chỉ nội bộ; đã chấp nhận rủi ro điều khoản khi tải audio YouTube và dùng cookie Reddit/X |
@@ -255,7 +255,7 @@ Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.m
 | Dashboard (8 màn hình, đăng nhập Google) | `web/` | `npm run build`, lint, typecheck; chạy thử với dữ liệu mẫu ở desktop, mobile và dark mode |
 | Docker Compose | `docker-compose.yml`, `docker/Dockerfile`, `web/Dockerfile` | Đã build cả hai image và chạy đủ 4 container (postgres, api, worker, web): migration, các trang web, proxy, `radar doctor`, một lượt `radar run`. Môi trường phát triển chặn kho gói Debian và GitHub, nên bản build thử thay `apt install ffmpeg` bằng ffmpeg tĩnh và lấy `rdt-cli` 0.4.1 từ PyPI; Dockerfile trong repo giữ nguyên |
 
-100 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
+102 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
 
 **Chưa kiểm tra được với dữ liệu thật:** môi trường phát triển bị chặn mạng tới Shopify, Reddit, X, YouTube, Exa, Jina, Hacker News và Groq, và không có Anthropic API key. Lần chạy đầu trên server nội bộ cần xem kỹ trang Sức khỏe nguồn. Riêng Shopify Changelog, Shopify Editions và Shopify Community, cách tách nội dung trang có thể cần chỉnh theo HTML thật (`link_pattern`, cách tách heading).
 

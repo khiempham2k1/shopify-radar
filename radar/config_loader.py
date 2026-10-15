@@ -106,7 +106,7 @@ class RadarConfig:
 
     @property
     def model(self) -> str:
-        return self.ai.get("model", "claude-opus-5-5")
+        return self.ai.get("model", "claude-haiku-5-5")
 
     @property
     def interests_hash(self) -> str:

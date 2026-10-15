@@ -95,18 +95,18 @@ def sync_tags(session: Session, config: RadarConfig, claude: ClaudeClient) -> Ta
 
     version = _next_version(session)
     now = utcnow()
-    effort = config.ai.get("classify_effort", "low")
+    effort = config.ai.get("classify_effort", "high")
 
     if not tags:
         prompt = load_prompt("extract_tags", interests=config.interests)
-        data = claude.call_json(CallSpec("tags", prompt.system, prompt.user, TAGS_SCHEMA, effort=effort, max_tokens=4000))
+        data = claude.call_json(CallSpec("tags", prompt.system, prompt.user, TAGS_SCHEMA, effort=effort, max_tokens=16000))
         _add_tags(session, data["tags"], 1, version, current)
         session.flush()
         return TagSync(tags=active_tags(session), changed=True, full_reclassify=True)
 
     old = "\n".join(f"{t.id}. {t.tag} — {t.description}" for t in tags)
     prompt = load_prompt("update_tags", interests=config.interests, old_tags=old)
-    data = claude.call_json(CallSpec("tags", prompt.system, prompt.user, UPDATE_SCHEMA, effort=effort, max_tokens=4000))
+    data = claude.call_json(CallSpec("tags", prompt.system, prompt.user, UPDATE_SCHEMA, effort=effort, max_tokens=16000))
     threshold = float(config.ai.get("reclassify_threshold", 0.6))
     full = float(data.get("change_ratio", 1.0)) >= threshold
     keep = set() if full else {int(i) for i in data.get("keep_ids", [])}
@@ -123,7 +123,7 @@ def sync_tags(session: Session, config: RadarConfig, claude: ClaudeClient) -> Ta
         # Large change: rebuild the tag set from scratch and classify recent items again.
         prompt = load_prompt("extract_tags", interests=config.interests)
         new_entries = claude.call_json(
-            CallSpec("tags", prompt.system, prompt.user, TAGS_SCHEMA, effort=effort, max_tokens=4000)
+            CallSpec("tags", prompt.system, prompt.user, TAGS_SCHEMA, effort=effort, max_tokens=16000)
         )["tags"]
         session.execute(delete(AIAnalyzed))
     start = max((t.priority for t in tags if t.id in keep), default=0) + 1

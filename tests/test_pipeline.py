@@ -468,3 +468,18 @@ def test_truncated_batch_is_split_until_it_fits(session, config):
     stats = classify(session, config, claude)
     assert stats.failed_batches == 0 and stats.sent == 6 and stats.matched == 6
     assert sizes[0] == 6 and max(sizes[1:]) <= 3 and session.scalar(select(func.count()).select_from(AIAnalyzed)) == 6
+
+
+def test_haiku_default_runs_without_fallbacks_at_high_effort(session, config, fake_anthropic):
+    from radar.ai.classifier import build_spec
+    from radar.pipeline import make_claude
+
+    assert config.model == "claude-haiku-5-5"
+    assert all(config.ai[k] == "high" for k in ("classify_effort", "summarize_effort", "report_effort"))
+    assert config.section("community")["digest_effort"] == config.section("community")["summary_effort"] == "high"
+    claude = make_claude(session, config, fake_anthropic)
+    claude.call_json(CallSpec("tags", "sys", "interests", {"type": "object", "properties": {"tags": {}}}, effort="high"))
+    call = fake_anthropic.messages.calls[0]
+    assert call["model"] == "claude-haiku-5-5" and "fallbacks" not in call and "betas" not in call
+    assert call["output_config"]["effort"] == "high"
+    assert build_spec(session, config, [], []).effort == "high"

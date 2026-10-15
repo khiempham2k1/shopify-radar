@@ -162,7 +162,7 @@ def build_spec(session: Session, config: RadarConfig, tags: list[AITag], items: 
         prompt.system,
         prompt.user,
         classify_schema(config),
-        effort=config.ai.get("classify_effort", "low"),
+        effort=config.ai.get("classify_effort", "high"),
         # Non-streaming calls should stay near 16000 output tokens (HTTP timeouts); a batch that
         # needs more is split instead (classify_chunk).
         max_tokens=int(config.ai.get("classify_max_tokens", 16000)),

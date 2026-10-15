@@ -3,8 +3,9 @@
 Every call:
 - sends a JSON schema through structured outputs so the reply always parses,
 - caches the system prompt (the stable part: instructions, interests, tags),
-- sets `effort` per task (low for classification, medium for summaries, high for the weekly report),
-- opts into server-side fallback when Claude declines (not available on the Batches API),
+- sets `effort` per task from sources.yaml (ai.*_effort, community.*_effort),
+- opts into server-side fallback when Claude declines, on models that offer it
+  (not Haiku, not the Batches API),
 - records token usage and cost in `ai_usage`.
 """
 
@@ -27,6 +28,12 @@ from radar.settings import get_settings
 log = logging.getLogger(__name__)
 
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
+# Models that accept `fallbacks: "default"` on the Claude API. Haiku has no server-side fallback.
+FALLBACK_MODELS = ("claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-fable-5-1")
+
+
+def supports_fallbacks(model: str) -> bool:
+    return model in FALLBACK_MODELS
 
 
 class AIError(RuntimeError):
@@ -100,7 +107,7 @@ class ClaudeClient:
             "output_config": _output_config(spec),
         }
         try:
-            if self.fallbacks:
+            if self.fallbacks and supports_fallbacks(self.model):
                 message = self.client.beta.messages.create(betas=[FALLBACK_BETA], fallbacks="default", **kwargs)
             else:
                 message = self.client.messages.create(**kwargs)

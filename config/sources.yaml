@@ -23,10 +23,11 @@ freshness:
   max_age_days: 30
 
 ai:
-  model: claude-opus-5-5
-  classify_effort: low
-  summarize_effort: medium
-  report_effort: high
+  model: claude-haiku-5-5          # mọi bước AI (phân loại, tóm tắt video, cộng đồng, báo cáo tuần)
+  # effort: low | medium | high | xhigh | max (cao hơn = kỹ hơn, tốn token hơn)
+  classify_effort: high           # phân loại tin và tạo tag
+  summarize_effort: high          # tóm tắt video YouTube
+  report_effort: high             # báo cáo tuần
   batch_size: 20                  # số item mỗi lần gọi Claude khi phân loại (lô bị cắt vì quá dài sẽ tự chia đôi)
   classify_max_tokens: 16000      # độ dài tối đa câu trả lời mỗi lô; giữ ≤ 16000 (gọi không streaming, tránh timeout)
   max_items_per_run: 400          # trần số item gửi Claude mỗi lần chạy
@@ -35,7 +36,7 @@ ai:
   reclassify_threshold: 0.6       # file chủ đề đổi nhiều hơn mức này thì phân loại lại toàn bộ
   reclassify_days: 14             # khi phân loại lại toàn bộ, chỉ lấy item trong N ngày
   use_batch_api: false            # true = gửi phân loại qua Message Batches API (rẻ hơn 50%, chậm hơn)
-  fallbacks: true                 # dùng server-side fallback khi Claude từ chối (không áp dụng cho Batch API)
+  fallbacks: true                 # khi Claude từ chối, tự chạy lại bằng model khác (chỉ Opus 5.5, Opus 5, Sonnet 5.5, Fable 5.1 hỗ trợ; Haiku tự bỏ qua)
   report_max_items: 150
   # Giá USD mỗi triệu token, dùng để tính chi phí trên trang Chi phí
   pricing:
@@ -47,7 +48,8 @@ community:
   # Trang "Thảo luận cộng đồng" (nguồn kind: community — Discord, Shopify Community)
   digest_hours: 24                # tóm tắt những gì bàn trong chừng này giờ
   digest_every_hours: 6           # làm mới bản tóm tắt tối đa mỗi chừng này giờ (mỗi lần là một lần gọi Claude)
-  digest_effort: medium
+  digest_effort: high             # tóm tắt thảo luận 24 giờ
+  summary_effort: high            # tóm tắt từng chủ đề Shopify Community
   max_chars: 80000                # giới hạn độ dài tin gửi Claude cho mỗi bản tóm tắt
 
 video:

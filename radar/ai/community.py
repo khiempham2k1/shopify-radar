@@ -2,8 +2,8 @@
 
 These items are not classified or rated one by one. Instead:
 
-- every Shopify Community thread gets a short Vietnamese summary (one batched
-  Claude call per run, effort low);
+- every Shopify Community thread gets a short Vietnamese summary (batched
+  Claude calls, community.summary_effort);
 - a Vietnamese digest of everything said in the last `digest_hours` (24) is
   rebuilt at most every `digest_every_hours` and stored as a Report with
   kind "community": overview, topics, open questions, each pointing at the
@@ -163,7 +163,7 @@ def build_digest(session: Session, config: RadarConfig, claude: ClaudeClient, no
         messages=text,
     )
     data = claude.call_json(
-        CallSpec("community", prompt.system, prompt.user, DIGEST_SCHEMA, effort=settings.get("digest_effort", "medium"), max_tokens=16000)
+        CallSpec("community", prompt.system, prompt.user, DIGEST_SCHEMA, effort=settings.get("digest_effort", "high"), max_tokens=16000)
     )
     known = {i.id for i in items}
     for section in ("topics", "open_questions"):
@@ -215,7 +215,8 @@ def summarize_threads(session: Session, config: RadarConfig, claude: ClaudeClien
         chunk = pending[start : start + batch]
         listing = "\n\n".join(f"[id={i.id}] Tiêu đề: {i.title}\nNội dung: {' '.join((i.content or '').split())[:1500]}" for i in chunk)
         prompt = load_prompt("community_summarize", count=len(chunk), items=listing)
-        data = claude.call_json(CallSpec("community", prompt.system, prompt.user, SUMMARY_SCHEMA, effort="low", max_tokens=16000))
+        effort = config.section("community").get("summary_effort", "high")
+        data = claude.call_json(CallSpec("community", prompt.system, prompt.user, SUMMARY_SCHEMA, effort=effort, max_tokens=16000))
         by_id = {i.id: i for i in chunk}
         for row in data.get("items", []):
             item = by_id.get(row.get("id"))
