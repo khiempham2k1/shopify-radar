@@ -100,3 +100,18 @@ def test_digest_and_thread_summaries(session, config, fake_anthropic):
 def test_no_digest_without_talk(session, config, fake_anthropic):
     claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
     assert community.refresh(session, config, claude) == {"summarized": 0, "digest": None}
+
+
+def test_quiet_discord_channel_is_not_an_error(monkeypatch):
+    from radar.collectors.base import CollectError
+
+    def run_cli(args, timeout=120):
+        if args[1] == "dc":
+            return {"fetched": 0, "stored": 0}
+        raise CollectError("discord: channel_resolution_error – Channel '222' not found in local database")
+
+    monkeypatch.setattr("radar.collectors.discord.run_cli", run_cli)
+    collector = DiscordCollector({"id": "discord", "channels": [{"id": "222"}]})
+    collector.http.pause = lambda *_: None
+    result = collector.collect()
+    assert result.status == "ok" and result.items == []

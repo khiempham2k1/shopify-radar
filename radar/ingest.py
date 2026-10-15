@@ -304,7 +304,15 @@ def collect_all(
             )
         )
         session.commit()
-        log.info("Source %s: %s via %s (%d items)", source["id"], result.status, result.backend or "-", len(result.items))
+        log.log(
+            logging.WARNING if result.status == "error" else logging.INFO,
+            "Source %s: %s via %s (%d items)%s",
+            source["id"],
+            result.status,
+            result.backend or "-",
+            len(result.items),
+            f" – {message}" if result.status != "ok" and message else "",
+        )
     run.finished_at = utcnow()
     session.commit()
     return run

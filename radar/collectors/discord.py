@@ -68,6 +68,8 @@ class DiscordCollector(Collector):
                 run_cli(args, timeout=300)
                 rows = run_cli(["discord", "recent", "-c", channel_id, "--hours", str(hours), "-n", str(self.limit * 2), "--json"])
             except CollectError as exc:
+                if "channel_resolution_error" in str(exc):
+                    continue  # nothing stored for this channel yet (quiet channel): no new messages
                 errors.append(f"#{name or channel_id}: {exc}")
                 continue
             items.extend(i for i in (message_to_item(r, name) for r in rows if isinstance(r, dict)) if i)
