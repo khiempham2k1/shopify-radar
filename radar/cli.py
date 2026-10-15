@@ -20,7 +20,6 @@ import sys
 from dataclasses import asdict, is_dataclass
 
 from radar.db import session_scope
-from radar.settings import ROOT
 
 
 def _print(obj) -> None:
@@ -30,12 +29,10 @@ def _print(obj) -> None:
 
 
 def cmd_migrate(_: argparse.Namespace) -> None:
-    from alembic import command
-    from alembic.config import Config
+    from radar.db import describe_url, has_schema, migrate
 
-    cfg = Config(str(ROOT / "alembic.ini"))
-    cfg.set_main_option("script_location", str(ROOT / "migrations"))
-    command.upgrade(cfg, "head")
+    migrate()
+    print(f"DB: {describe_url()} · {'đã có bảng' if has_schema() else 'CHƯA có bảng'}")
 
 
 def cmd_run(args: argparse.Namespace) -> None:

@@ -45,3 +45,28 @@ def init_db(url: str | None = None) -> None:
     from radar.models import Base
 
     Base.metadata.create_all(get_engine(url))
+
+
+def describe_url(url: str | None = None) -> str:
+    """Database URL with the password hidden, for logs."""
+    from sqlalchemy.engine import make_url
+
+    return make_url(url or get_settings().database_url).render_as_string(hide_password=True)
+
+
+def has_schema(url: str | None = None) -> bool:
+    from sqlalchemy import inspect
+
+    return inspect(get_engine(url)).has_table("settings")
+
+
+def migrate() -> None:
+    """Apply Alembic migrations to DATABASE_URL (same as `radar migrate`)."""
+    from alembic import command
+    from alembic.config import Config
+
+    from radar.settings import ROOT
+
+    cfg = Config(str(ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(ROOT / "migrations"))
+    command.upgrade(cfg, "head")

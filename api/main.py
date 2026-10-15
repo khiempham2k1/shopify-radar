@@ -11,6 +11,7 @@ import json
 import logging
 from collections import Counter, defaultdict
 from collections.abc import Iterator
+from contextlib import asynccontextmanager
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo
@@ -21,7 +22,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from radar.config_loader import EDITABLE_FILES, load_config, read_text, save_text
-from radar.db import session_factory
+from radar.db import describe_url, has_schema, migrate, session_factory
 from radar.models import (
     AIAnalyzed,
     AIResult,
@@ -40,7 +41,19 @@ from radar.models import (
 from radar.settings import get_settings
 
 log = logging.getLogger(__name__)
-app = FastAPI(title="Shopify Radar API", version="0.1.0")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Local runs often start the API before `radar migrate`: create the schema then.
+    log.warning("Shopify Radar API dùng DB: %s", describe_url())
+    if not has_schema():
+        log.warning("DB chưa có bảng, đang chạy migration…")
+        migrate()
+    yield
+
+
+app = FastAPI(title="Shopify Radar API", version="0.1.0", lifespan=lifespan)
 
 
 # ── dependencies ────────────────────────────────────────────────────
