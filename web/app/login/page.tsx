@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginCard } from "@/components/views/LoginCard";
-import { authDisabled, currentUserEmail } from "@/lib/auth";
+import { authDisabled, currentUserEmail, loginMethods } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
 
@@ -15,5 +15,5 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const callbackUrl = safeCallback(params.callbackUrl);
   if (authDisabled() || (await currentUserEmail())) redirect(callbackUrl);
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
-  return <LoginCard callbackUrl={callbackUrl} error={error ?? null} />;
+  return <LoginCard callbackUrl={callbackUrl} error={error ?? null} methods={loginMethods()} />;
 }

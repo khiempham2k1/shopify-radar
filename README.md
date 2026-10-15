@@ -34,13 +34,13 @@ Mỗi lần chạy (mặc định mỗi 2 giờ, xem `schedule.collect` trong `c
 ## Quyền xem
 
 - **Giai đoạn 1** (Tổng quan, Thay đổi nền tảng, Feed, Sức khỏe nguồn): ai mở được dashboard đều xem được, không cần đăng nhập, và không thấy link đăng nhập.
-- **Chỉ quản trị đăng nhập:** các email trong `PHASE2_EMAILS` (ngăn bằng dấu phẩy) mở thẳng `/login`, đăng nhập Google. Tài khoản khác bị từ chối. Quản trị thấy Giai đoạn 2 (Báo cáo tuần, Cài đặt, Chi phí AI), nút "Không liên quan" và chi tiết kỹ thuật. API cũng chặn theo danh sách này, không chỉ ẩn menu.
+- **Chỉ quản trị đăng nhập:** các email trong `PHASE2_EMAILS` (ngăn bằng dấu phẩy) mở thẳng `/login`, đăng nhập Google (cần domain HTTPS) hoặc bằng mật khẩu `ADMIN_PASSWORD` (khi chạy bằng IP). Tài khoản khác bị từ chối. Quản trị thấy Giai đoạn 2 (Báo cáo tuần, Cài đặt, Chi phí AI), nút "Không liên quan" và chi tiết kỹ thuật. API cũng chặn theo danh sách này, không chỉ ẩn menu.
 - Trang công khai không hiện chi tiết kỹ thuật (tên công cụ, lỗi chi tiết, cấu hình, DB). Tài khoản Giai đoạn 2 vẫn thấy cột "Công cụ đang dùng" và lỗi chi tiết ở Sức khỏe nguồn; trạng thái đăng nhập Reddit/X nằm ở trang Cài đặt.
 - `AUTH_DISABLED=true` (chỉ dùng khi chạy local) mở mọi trang, kể cả Giai đoạn 2.
 
-## Triển khai lên VPS (HTTPS, domain riêng)
+## Triển khai lên VPS
 
-Xem [deploy/DEPLOY.md](deploy/DEPLOY.md): `sudo bash deploy/setup-vps.sh <domain>` cài Docker, firewall, tạo `.env` với các secret ngẫu nhiên; Caddy tự lấy chứng chỉ HTTPS; có script cập nhật (`deploy/update.sh`) và sao lưu Postgres (`deploy/backup.sh`).
+Xem [deploy/DEPLOY.md](deploy/DEPLOY.md). `sudo bash deploy/setup-vps.sh` (chạy bằng `http://<ip>:3000`) hoặc `sudo bash deploy/setup-vps.sh <domain>` (HTTPS qua Caddy) cài Docker, firewall và tạo `.env` với các secret ngẫu nhiên cùng mật khẩu admin. Có script cập nhật (`deploy/update.sh`) và sao lưu Postgres (`deploy/backup.sh`).
 
 ## Chạy trên server nội bộ
 

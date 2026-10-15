@@ -1,10 +1,22 @@
 # Triển khai Shopify Radar lên VPS
 
-Kết quả: dashboard chạy ở `https://<domain>` với HTTPS tự động (Caddy + Let's Encrypt). API và Postgres chỉ nằm trong mạng nội bộ của Docker, không mở ra Internet. Worker tự chạy thu thập, phân loại mỗi 2 giờ và báo cáo tuần sáng thứ Hai.
+Có hai cách chạy:
+
+| | Chạy bằng IP (mặc định) | Có domain |
+|---|---|---|
+| Địa chỉ | `http://<ip-vps>:3000` (đổi cổng được) | `https://radar.congty.com` |
+| Lệnh cài | `sudo bash deploy/setup-vps.sh` | `sudo bash deploy/setup-vps.sh radar.congty.com` |
+| Admin đăng nhập | Email trong `PHASE2_EMAILS` + `ADMIN_PASSWORD` | Mật khẩu như bên trái, hoặc Google |
+| Mã hóa | Không (HTTP) | HTTPS tự động (Caddy + Let's Encrypt) |
+
+Ở cả hai cách, API và Postgres chỉ nằm trong mạng nội bộ của Docker, không mở ra Internet. Worker tự chạy thu thập, phân loại mỗi 2 giờ và viết báo cáo tuần sáng thứ Hai. Sau này có domain thì chạy lại script cài đặt với domain là chuyển sang HTTPS, không mất dữ liệu.
+
+**Chạy bằng IP thì Google không đăng nhập được**, vì Google chỉ nhận địa chỉ trả về là domain HTTPS. Admin đăng nhập bằng mật khẩu. Kết nối HTTP không mã hóa, nên đừng dùng lại mật khẩu này ở nơi khác, và nên chuyển sang domain khi có thể.
 
 ```
-Internet ──443──▶ caddy ──▶ web (Next.js) ──▶ api (FastAPI) ──▶ postgres
-                                              worker (radar scheduler) ──┘
+Chạy bằng IP:  Internet ──:3000──▶ web (Next.js) ──▶ api (FastAPI) ──▶ postgres
+Có domain:     Internet ──443──▶ caddy ──▶ web ──▶ api ──▶ postgres
+                                            worker (radar scheduler) ──┘
 ```
 
 ## 0. Chuẩn bị
@@ -12,9 +24,10 @@ Internet ──443──▶ caddy ──▶ web (Next.js) ──▶ api (FastAPI
 | Cần có | Ghi chú |
 |---|---|
 | VPS Ubuntu 22.04/24.04 (hoặc Debian 12) | Tối thiểu 2 vCPU, 2 GB RAM (script tự thêm 2 GB swap), 30 GB ổ. Khuyên 4 GB RAM nếu nghe nhiều video. |
-| Domain hoặc subdomain | Tạo bản ghi **A** trỏ về IP VPS, ví dụ `radar.congty.com`. Đợi DNS cập nhật trước bước chạy. |
+| Cổng mở ở nhà cung cấp | Nhiều nhà cung cấp (AWS, GCP, Vultr…) có firewall riêng ngoài VPS: mở cổng 3000 (cách IP) hoặc 80/443 (cách domain). |
+| Domain (chỉ cách domain) | Tạo bản ghi **A** trỏ về IP VPS, ví dụ `radar.congty.com`. Đợi DNS cập nhật trước bước chạy. |
 | Quyền đọc repo | Repo private: dùng [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) (chỉ đọc) hoặc Personal Access Token. |
-| Các key và cookie | `ANTHROPIC_API_KEY`, `GROQ_API_KEYS`, Google OAuth client, cookie X, token Discord, `credential.json` của rdt-cli (lấy từ máy bạn đang chạy local). |
+| Các key và cookie | `ANTHROPIC_API_KEY`, `GROQ_API_KEYS`, cookie X, token Discord, `credential.json` của rdt-cli (lấy từ máy bạn đang chạy local). Google OAuth client nếu dùng domain và muốn đăng nhập Google. |
 
 **IP datacenter có thể bị chặn.** YouTube đôi khi đòi "Sign in to confirm you're not a bot", Reddit hoặc X có thể trả 403 với IP của nhà cung cấp VPS. Trang Sức khỏe nguồn sẽ báo nguồn nào lỗi. Nếu gặp, đặt `RADAR_HTTP_PROXY` (proxy residential) trong `.env`.
 
@@ -29,10 +42,18 @@ cd /opt/radar
 ## 2. Chạy script cài đặt (một lần)
 
 ```bash
-sudo bash deploy/setup-vps.sh radar.congty.com
+sudo bash deploy/setup-vps.sh                    # chạy bằng IP, cổng 3000 (tự tìm IP public)
+sudo bash deploy/setup-vps.sh :8080              # chạy bằng IP, cổng 8080
+sudo bash deploy/setup-vps.sh radar.congty.com   # có domain, HTTPS
 ```
 
-Script cài Docker, bật firewall (chỉ mở SSH, 80, 443), thêm swap nếu máy ít RAM, và tạo `.env` với mật khẩu Postgres, `RADAR_API_TOKEN`, `NEXTAUTH_SECRET` ngẫu nhiên, `DOMAIN`, `NEXTAUTH_URL=https://<domain>`. Chạy lại không ghi đè giá trị đã có.
+Script làm các việc sau:
+- cài Docker;
+- bật firewall, chỉ mở SSH và cổng dashboard (hoặc 80/443 khi có domain);
+- thêm swap nếu máy ít RAM;
+- tạo `.env` với mật khẩu Postgres, `RADAR_API_TOKEN`, `NEXTAUTH_SECRET` và **`ADMIN_PASSWORD`** ngẫu nhiên, cùng `NEXTAUTH_URL` đúng địa chỉ truy cập.
+
+Cuối cùng script in ra địa chỉ và mật khẩu admin. Chạy lại không đổi các secret đã có; chạy lại với tham số khác là đổi giữa IP và domain.
 
 ## 3. Điền `.env`
 
@@ -44,15 +65,16 @@ nano .env
 |---|---|
 | `ANTHROPIC_API_KEY` | console.anthropic.com |
 | `GROQ_API_KEYS` | console.groq.com, nhiều key ngăn bằng dấu phẩy |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud Console → APIs & Services → Credentials (bước 4) |
 | `PHASE2_EMAILS` | Email admin được đăng nhập, ngăn bằng dấu phẩy |
+| `ADMIN_PASSWORD` | Script đã tạo sẵn; muốn đổi thì sửa ở đây |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Chỉ khi có domain và muốn đăng nhập Google (bước 4); để trống thì trang đăng nhập chỉ có mật khẩu |
 | `TWITTER_AUTH_TOKEN`, `TWITTER_CT0` | Cookie x.com của tài khoản radar (giống lúc chạy local) |
 | `DISCORD_TOKEN` | Token tài khoản Discord của radar (giống lúc chạy local) |
 | `RADAR_HTTP_PROXY` | Để trống, chỉ điền khi nguồn bị chặn IP |
 
-Không đổi `AUTH_DISABLED` (phải là `false` trên VPS).
+Không đổi `AUTH_DISABLED` (phải là `false` trên VPS), `NEXTAUTH_URL`, `WEB_PORT`, `COMPOSE_FILE`: script đặt các biến này theo cách chạy.
 
-## 4. Google OAuth
+## 4. Google OAuth (chỉ khi có domain, tùy chọn)
 
 Trong OAuth client (loại *Web application*):
 - **Authorized JavaScript origins:** `https://radar.congty.com`
@@ -89,7 +111,7 @@ Kiểm tra công cụ và đăng nhập:
 docker compose exec worker radar doctor --network
 ```
 
-Mở `https://radar.congty.com`. Admin đăng nhập ở `https://radar.congty.com/login`.
+Mở `http://<ip-vps>:3000` (hoặc `https://radar.congty.com`). Admin mở thẳng `/login`, ví dụ `http://<ip-vps>:3000/login`, rồi đăng nhập bằng email trong `PHASE2_EMAILS` và `ADMIN_PASSWORD`. Sai mật khẩu 10 lần thì email đó bị khóa đăng nhập 15 phút.
 
 ## Vận hành
 
@@ -134,9 +156,12 @@ Trang **Sức khỏe nguồn** (khi đăng nhập admin) hiện trạng thái c�
 
 | Hiện tượng | Nguyên nhân và cách sửa |
 |---|---|
+| Không mở được `http://<ip>:3000` | `docker compose ps` xem web có `healthy` không; kiểm tra firewall của nhà cung cấp VPS đã mở cổng; `curl -I http://127.0.0.1:3000/login` ngay trên VPS |
+| Đăng nhập xong bị đưa về `localhost` hoặc địa chỉ khác | `NEXTAUTH_URL` trong `.env` phải đúng địa chỉ bạn mở trên trình duyệt (kể cả cổng). Sửa rồi `docker compose up -d web` |
+| Báo "Email hoặc mật khẩu không đúng" | Email phải nằm trong `PHASE2_EMAILS`; mật khẩu xem `grep ADMIN_PASSWORD .env`. Sửa `.env` thì chạy `docker compose up -d web` |
 | Không vào được HTTPS, log caddy báo lỗi chứng chỉ | DNS chưa trỏ đúng IP, hoặc cổng 80/443 bị chặn ở firewall của nhà cung cấp VPS. Kiểm tra `dig +short radar.congty.com` |
 | `502 Bad Gateway` | Web chưa sẵn sàng: `docker compose ps`, `docker compose logs web api` |
 | Đăng nhập Google báo `redirect_uri_mismatch` | Redirect URI ở bước 4 phải khớp chính xác `https://<domain>/api/auth/callback/google` |
 | Đăng nhập xong vẫn không thấy Giai đoạn 2 | Email chưa có trong `PHASE2_EMAILS`, sửa `.env` rồi `docker compose up -d web` |
-| Build dừng vì hết RAM | Kiểm tra swap: `swapon --show`; chạy lại `sudo bash deploy/setup-vps.sh <domain>` |
+| Build dừng vì hết RAM | Kiểm tra swap: `swapon --show`; chạy lại `sudo bash deploy/setup-vps.sh` (cùng tham số lúc cài) |
 | YouTube/Reddit/X lỗi 403 hoặc "not a bot" | IP VPS bị chặn: đặt `RADAR_HTTP_PROXY`, hoặc chấp nhận dùng nguồn dự phòng (Reddit tự chuyển sang Exa khi rdt-cli lỗi) |

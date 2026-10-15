@@ -1,9 +1,8 @@
-# Bổ sung cho docker-compose.yml khi chạy trên VPS có domain:
-#   - Caddy nhận cổng 80/443 và tự lấy chứng chỉ HTTPS cho DOMAIN;
-#   - dashboard không còn mở cổng 3000 ra ngoài;
-#   - healthcheck và giới hạn dung lượng log cho mọi container.
-# Dùng bằng COMPOSE_FILE=docker-compose.yml:deploy/docker-compose.vps.yml trong .env
-# (deploy/setup-vps.sh tự đặt), sau đó các lệnh `docker compose ...` dùng cả hai file.
+# Bổ sung cho docker-compose.yml khi chạy trên VPS:
+#   - healthcheck và giới hạn dung lượng log cho mọi container;
+#   - dashboard mở ở cổng WEB_PORT (mặc định 3000): http://<ip-vps>:<WEB_PORT>.
+# Có domain thì thêm deploy/docker-compose.https.yml (Caddy + HTTPS).
+# deploy/setup-vps.sh đặt COMPOSE_FILE trong .env, sau đó các lệnh `docker compose ...` dùng đủ các file.
 
 x-logging: &logging
   logging:
@@ -28,7 +27,8 @@ services:
 
   web:
     <<: *logging
-    ports: !reset []
+    ports: !override
+      - "${WEB_PORT:-3000}:3000"
     depends_on:
       api: {condition: service_healthy}
     healthcheck:
@@ -37,24 +37,3 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-
-  caddy:
-    <<: *logging
-    image: caddy:2.10-alpine
-    environment:
-      DOMAIN: ${DOMAIN:?đặt DOMAIN trong .env, ví dụ radar.congty.com}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      web: {condition: service_healthy}
-    restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:

@@ -4,7 +4,7 @@
  *
  * - Phase 1 pages (Tổng quan, Thay đổi nền tảng, Feed, Sức khỏe nguồn) are
  *   readable without signing in. Changing anything needs a signed-in account.
- * - Only admins sign in: the accounts listed in PHASE2_EMAILS. They open /login
+ * - Only admins sign in (Google, or ADMIN_PASSWORD): the accounts listed in PHASE2_EMAILS. They open /login
  *   directly (there is no link for visitors) and get Phase 2 (Báo cáo tuần,
  *   Cài đặt, Chi phí AI) and the technical details.
  */

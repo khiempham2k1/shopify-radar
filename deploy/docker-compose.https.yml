@@ -1,0 +1,30 @@
+# Thêm sau deploy/docker-compose.vps.yml khi có domain:
+#   COMPOSE_FILE=docker-compose.yml:deploy/docker-compose.vps.yml:deploy/docker-compose.https.yml
+# Caddy nhận cổng 80/443, tự lấy chứng chỉ HTTPS cho DOMAIN; dashboard không mở cổng nào khác.
+
+services:
+  web:
+    ports: !reset []
+
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      DOMAIN: ${DOMAIN:?đặt DOMAIN trong .env, ví dụ radar.congty.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web: {condition: service_healthy}
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
