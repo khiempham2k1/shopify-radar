@@ -207,6 +207,8 @@ export interface CommunityRef {
   reactions: number;
   comments: number;
   is_reply: boolean;
+  /** Came in after the digest shown: summed up in the next one. */
+  pending?: boolean;
 }
 
 export interface CommunityTopic {
@@ -232,6 +234,7 @@ export interface CommunityPage {
   } | null;
   digests: { id: number; created_at: string | null; items_considered: number }[];
   hours: number;
+  pending: number;
   threads: CommunityRef[];
   channels: { name: string; count: number; messages: CommunityRef[] }[];
   sources: { id: string; name: string; enabled: boolean }[];

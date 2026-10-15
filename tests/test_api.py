@@ -169,6 +169,31 @@ def test_community_page(client, db_url, fake_anthropic):
     assert any(t["title"] == "Editor slow on Dawn" and t["summary"] for t in data["threads"])
     assert {c["name"]: c["count"] for c in data["channels"]}["Discord #general"] == 5
     assert data["digests"][0]["id"] == data["digest"]["id"]
+    assert data["pending"] == 0 and not any(m["pending"] for c in data["channels"] for m in c["messages"])
+
+    # A message after the digest: listed under the latest digest as "pending", not in the digest itself.
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from radar.collectors.discord import message_to_item
+    from radar.ingest import store_items
+    from radar.models import Item, Report, utcnow
+    from tests.test_community import row
+
+    session = session_factory(db_url)()
+    for item in session.scalars(select(Item)):
+        item.first_seen = utcnow() - timedelta(minutes=10)
+    for report in session.scalars(select(Report)):
+        report.created_at = utcnow() - timedelta(minutes=5)
+    store_items(session, "discord", [message_to_item(row("late", "Editor froze again", minutes_ago=1))], config.keywords, max_age_days=7)
+    session.commit()
+    session.close()
+    data = client.get("/api/community").json()
+    assert data["pending"] == 1
+    general = {c["name"]: c for c in data["channels"]}["Discord #general"]
+    assert general["count"] == 6 and [m["pending"] for m in general["messages"]].count(True) == 1
+
     # Community talk stays out of the Feed.
     feed = client.get("/api/items", params={"view": "feed", "mode": "all"}).json()["items"]
     assert not [i for i in feed if i["source"]["kind"] == "community"]

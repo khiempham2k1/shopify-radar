@@ -520,33 +520,56 @@ def community_page(
     hours: int = Query(24, ge=1, le=168),
     per_channel: int = Query(40, ge=1, le=200),
 ) -> dict[str, Any]:
-    """What people discuss: the Vietnamese digest (latest, or the one asked for), community
-    threads with their summaries, and recent messages per Discord channel. Not rated."""
+    """What people discuss: the Vietnamese digest (latest, or the one asked for) and the
+    threads and Discord messages behind it. Each digest holds only talk no earlier digest
+    did, so nothing repeats from one to the next. Viewing the latest also lists what came
+    in after it (`pending`: summed up in the next digest). Not rated."""
     from radar.ai.community import KIND, community_sources, place, window_items
 
     sources = community_sources(session)
-    digests = list(session.scalars(select(Report).where(Report.kind == KIND).order_by(Report.created_at.desc()).limit(30)))
+    digests = list(session.scalars(select(Report).where(Report.kind == KIND).order_by(Report.created_at.desc(), Report.id.desc()).limit(30)))
     chosen = next((d for d in digests if d.id == digest), None) if digest else (digests[0] if digests else None)
+    is_latest = chosen is None or chosen is digests[0]
 
     digest_out = None
+    items: list[Item] = []
     if chosen is not None:
         content = dict(chosen.content or {})
         ids = {i for section in ("topics", "open_questions") for entry in content.get(section, []) for i in entry.get("item_ids", [])}
         refs = {i.id: community_ref(i, sources) for i in session.scalars(select(Item).where(Item.id.in_(ids)))} if ids else {}
         for section in ("topics", "open_questions"):
             content[section] = [{**entry, "items": [refs[i] for i in entry.get("item_ids", []) if i in refs]} for entry in content.get(section, [])]
+        all_ids = content.pop("all_item_ids", None)
         digest_out = {"id": chosen.id, "created_at": iso(chosen.created_at), "items_considered": chosen.items_considered, **content}
+        if all_ids:
+            items = sorted(session.scalars(select(Item).where(Item.id.in_(all_ids))), key=lambda i: i.published_at or i.first_seen)
+        elif not is_latest:  # digest written before ids were kept: its time window
+            start, end = content.get("window_start"), content.get("window_end")
+            items = [i for i in window_items(session, 24 * 30) if start and end and start <= iso(i.published_at or i.first_seen) <= end]
 
-    items = window_items(session, hours)
-    threads = [community_ref(i, sources) for i in reversed(items) if i.media_type != "message"]
+    if is_latest:
+        if chosen is not None and not items:  # older digest format: the usual 24 h view
+            items = window_items(session, hours)
+        newer = window_items(session, hours, stored_after=chosen.created_at) if chosen is not None else window_items(session, hours)
+        seen = {i.id for i in items}
+        pending_ids = {i.id for i in newer if i.id not in seen} if chosen is not None else set()
+        items = sorted([*items, *[i for i in newer if i.id not in seen]], key=lambda i: i.published_at or i.first_seen)
+    else:
+        pending_ids = set()
+
+    def ref(item: Item) -> dict[str, Any]:
+        return {**community_ref(item, sources), "pending": item.id in pending_ids}
+
+    threads = [ref(i) for i in reversed(items) if i.media_type != "message"]
     channels: dict[str, list[dict[str, Any]]] = {}
     for item in reversed(items):  # newest first
         if item.media_type == "message":
-            channels.setdefault(place(item, sources), []).append(community_ref(item, sources))
+            channels.setdefault(place(item, sources), []).append(ref(item))
     return {
         "digest": digest_out,
         "digests": [{"id": d.id, "created_at": iso(d.created_at), "items_considered": d.items_considered} for d in digests],
         "hours": hours,
+        "pending": len(pending_ids),
         "threads": threads,
         "channels": [{"name": name, "count": len(msgs), "messages": msgs[:per_channel]} for name, msgs in channels.items()],
         "sources": [{"id": s.id, "name": s.name, "enabled": s.enabled} for s in sources.values()],

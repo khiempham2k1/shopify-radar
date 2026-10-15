@@ -38,7 +38,7 @@ function Digest({ data, onPick }: { data: CommunityPage; onPick: (id: number | n
   if (!d) {
     return (
       <div className="panel">
-        <h2>Tóm tắt 24 giờ qua</h2>
+        <h2>Tóm tắt thảo luận</h2>
         <Empty>Chưa có bản tóm tắt. Bản đầu tiên được tạo ở lần chạy tới khi có tin từ Discord hoặc Shopify Community.</Empty>
       </div>
     );
@@ -46,7 +46,7 @@ function Digest({ data, onPick }: { data: CommunityPage; onPick: (id: number | n
   return (
     <div className="panel">
       <div className="panel-head">
-        <h2>Tóm tắt {data.hours} giờ qua</h2>
+        <h2>{data.digests[0]?.id === d.id ? "Tóm tắt mới nhất" : "Tóm tắt"}</h2>
         {data.digests.length > 1 && (
           <select className="field" value={d.id} onChange={(e) => onPick(Number(e.target.value))} aria-label="Xem bản tóm tắt">
             {data.digests.map((x, i) => (
@@ -60,8 +60,9 @@ function Digest({ data, onPick }: { data: CommunityPage; onPick: (id: number | n
       </div>
       <p className="sub">
         {d.window_start && d.window_end ? `${fmtDateTime(d.window_start)} – ${fmtDateTime(d.window_end)} · ` : ""}
-        AI tóm tắt từ {fmtNumber(d.items_considered)} tin
+        AI tóm tắt {fmtNumber(d.items_considered)} tin mới so với bản trước
         {d.places?.length ? ` (${d.places.map((p) => `${p.name}: ${fmtNumber(p.count)}`).join(", ")})` : ""}
+        {data.pending > 0 ? ` · ${fmtNumber(data.pending)} tin đến sau, sẽ vào bản tóm tắt tới` : ""}
       </p>
       <p className="c-overview">{d.overview}</p>
 
@@ -106,7 +107,7 @@ function Threads({ threads }: { threads: CommunityRef[] }) {
   return (
     <div className="panel">
       <h2>Shopify Community</h2>
-      <p className="sub">Chủ đề mới, tóm tắt bằng tiếng Việt</p>
+      <p className="sub">Chủ đề trong bản tóm tắt đang xem, tóm tắt bằng tiếng Việt</p>
       {threads.length === 0 ? (
         <Empty>Chưa có chủ đề mới.</Empty>
       ) : (
@@ -116,6 +117,7 @@ function Threads({ threads }: { threads: CommunityRef[] }) {
               <div className="stripe sev-low" />
               <div style={{ minWidth: 0 }}>
                 <div className="t">
+                  {t.pending && <span className="c-new">mới</span>}
                   <a href={t.url} target="_blank" rel="noopener noreferrer">
                     {t.title}
                   </a>
@@ -141,7 +143,7 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
   return (
     <div className="panel">
       <h2>Discord</h2>
-      <p className="sub">Tin nhắn gần đây theo kênh (nguyên văn); phần tóm tắt nằm ở trên</p>
+      <p className="sub">Tin nhắn trong bản tóm tắt đang xem, theo kênh (nguyên văn). Nhãn “mới”: đến sau bản tóm tắt.</p>
       {channels.length === 0 ? (
         <Empty>Chưa có tin nhắn Discord nào.</Empty>
       ) : (
@@ -155,6 +157,7 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
             <ul className="c-messages">
               {c.messages.map((m) => (
                 <li key={m.id}>
+                  {m.pending && <span className="c-new">mới</span>}
                   <span className="mono muted">{m.when ? fmtDateTime(m.when) : ""}</span> <b>{m.author}</b>
                   {m.is_reply && <span className="muted"> ↪</span>}: {m.text}{" "}
                   <a href={m.url} target="_blank" rel="noopener noreferrer" className="c-link" aria-label="Mở tin trên Discord">
@@ -192,7 +195,7 @@ export function CommunityView() {
       <div className="top">
         <div>
           <h1>Thảo luận cộng đồng</h1>
-          <p>Mọi người đang bàn gì trên Discord và Shopify Community trong 24 giờ qua, tóm tắt bằng tiếng Việt. Phần này để theo dõi, không chấm điểm.</p>
+          <p>Mọi người đang bàn gì trên Discord và Shopify Community, tóm tắt bằng tiếng Việt. Mỗi bản tóm tắt chỉ gồm tin mới so với bản trước; chọn bản cũ ở ô bên phải. Phần này để theo dõi, không chấm điểm.</p>
         </div>
       </div>
       {error && <ErrorBox error={error} onRetry={() => reload()} />}

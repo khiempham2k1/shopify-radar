@@ -92,9 +92,27 @@ def test_digest_and_thread_summaries(session, config, fake_anthropic):
     assert content["overview"] and content["topics"][0]["kind"] == "problem"
     assert 99999 not in content["topics"][0]["item_ids"]  # unknown ids dropped
     assert {p["name"] for p in content["places"]} == {"Discord #general", "Shopify Community"}
-    # Not due again right away; forced works.
+    assert set(content["all_item_ids"]) == {i.id for i in community.window_items(session, 24)}
+    # Not due again right away; forced, but nothing new since: no digest repeating the same talk.
     assert community.refresh(session, config, claude)["digest"] is None
-    assert community.refresh(session, config, claude, force=True)["digest"]
+    assert community.refresh(session, config, claude, force=True)["digest"] is None
+
+
+def test_next_digest_holds_only_new_talk(session, config, fake_anthropic):
+    seed_talk(session, config)
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    first = session.get(Report, community.refresh(session, config, claude)["digest"])
+    # Time passes: the talk was stored 10 minutes ago, the digest written 5 minutes ago.
+    for item in session.scalars(select(community.Item)):
+        item.first_seen = utcnow() - timedelta(minutes=10)
+    first.created_at = utcnow() - timedelta(minutes=5)
+    session.flush()
+    new = message_to_item(row("new", "Anyone else seeing the editor freeze?", minutes_ago=1))
+    store_items(session, "discord", [new], config.keywords, max_age_days=7)
+    session.flush()
+    second = session.get(Report, community.refresh(session, config, claude, force=True)["digest"])
+    assert second.items_considered == 1
+    assert second.content["all_item_ids"] == [session.scalar(select(community.Item).where(community.Item.external_id == "new")).id]
 
 
 def test_no_digest_without_talk(session, config, fake_anthropic):

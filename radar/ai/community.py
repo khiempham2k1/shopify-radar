@@ -4,10 +4,12 @@ These items are not classified or rated one by one. Instead:
 
 - every Shopify Community thread gets a short Vietnamese summary (batched
   Claude calls, community.summary_effort);
-- a Vietnamese digest of everything said in the last `digest_hours` (24) is
-  rebuilt at most every `digest_every_hours` and stored as a Report with
-  kind "community": overview, topics, open questions, each pointing at the
-  messages it comes from.
+- a Vietnamese digest is written at most every `digest_every_hours` and
+  stored as a Report with kind "community": overview, topics, open questions,
+  each pointing at the messages it comes from. Each digest covers only what
+  no earlier digest did (items stored since the previous one, said within the
+  last `digest_hours`), so nothing is summed up twice; its item ids are kept
+  so the page can show exactly the messages behind it.
 """
 
 from __future__ import annotations
@@ -94,17 +96,31 @@ def community_sources(session: Session) -> dict[str, Source]:
     return {s.id: s for s in session.scalars(select(Source).where(Source.kind == KIND))}
 
 
-def window_items(session: Session, hours: int, now: datetime | None = None) -> list[Item]:
-    """Community items said in the last `hours`, oldest first."""
+def window_items(session: Session, hours: int, now: datetime | None = None, stored_after: datetime | None = None) -> list[Item]:
+    """Community items said in the last `hours`, oldest first; with `stored_after`,
+    only those stored after that moment (not yet in an earlier digest)."""
     now = now or utcnow()
     since = now - timedelta(hours=hours)
     sources = community_sources(session)
     if not sources:
         return []
-    rows = session.scalars(
-        select(Item).where(Item.source_id.in_(list(sources)), func.coalesce(Item.published_at, Item.first_seen) >= since)
+    query = select(Item).where(Item.source_id.in_(list(sources)), func.coalesce(Item.published_at, Item.first_seen) >= since)
+    if stored_after is not None:
+        query = query.where(Item.first_seen > stored_after)
+    return sorted(session.scalars(query), key=when)
+
+
+def latest_digest(session: Session) -> Report | None:
+    return session.scalar(select(Report).where(Report.kind == KIND).order_by(Report.created_at.desc(), Report.id.desc()).limit(1))
+
+
+def previous_digest(session: Session, report: Report) -> Report | None:
+    return session.scalar(
+        select(Report)
+        .where(Report.kind == KIND, Report.created_at < report.created_at)
+        .order_by(Report.created_at.desc(), Report.id.desc())
+        .limit(1)
     )
-    return sorted(rows, key=when)
 
 
 def place(item: Item, sources: dict[str, Source]) -> str:
@@ -147,13 +163,14 @@ def build_digest(session: Session, config: RadarConfig, claude: ClaudeClient, no
     settings = config.section("community")
     hours = int(settings.get("digest_hours", 24))
     now = now or utcnow()
-    items = window_items(session, hours, now)
+    last = latest_digest(session)
+    items = window_items(session, hours, now, stored_after=last.created_at if last else None)
     if not items:
-        return None
+        return None  # nothing new since the last digest
     sources = community_sources(session)
     text, included = render(items, sources, int(settings.get("max_chars", 80000)))
     tz = ZoneInfo(get_settings().timezone)
-    start = now - timedelta(hours=hours)
+    start = min(when(items[0]), now)
     prompt = load_prompt(
         "community_digest",
         hours=hours,
@@ -177,6 +194,7 @@ def build_digest(session: Session, config: RadarConfig, claude: ClaudeClient, no
         window_end=now.isoformat(),
         places=[{"name": name, "count": n} for name, n in sorted(counts.items(), key=lambda kv: -kv[1])],
         included=included,
+        all_item_ids=[i.id for i in items],
     )
     report = Report(kind=KIND, period_start=start.astimezone(tz).date(), period_end=now.astimezone(tz).date(), content=data, items_considered=len(items), model=claude.model)
     session.add(report)

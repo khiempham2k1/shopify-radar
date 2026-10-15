@@ -350,6 +350,7 @@ tfoot td { font-weight: 600; }
 .c-quote { color: var(--muted); overflow-wrap: anywhere; }
 .c-questions { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 .c-link { margin-left: 8px; font-size: 12.5px; }
+.c-new { font-size: 11px; color: var(--accent); background: var(--accent-soft); border-radius: 5px; padding: 0 6px; margin-right: 4px; }
 .c-channel { border-top: 1px solid var(--line); padding: 10px 0; }
 .c-channel > summary { cursor: pointer; }
 .c-messages { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; overflow-wrap: anywhere; }

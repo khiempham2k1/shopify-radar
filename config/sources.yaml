@@ -46,9 +46,10 @@ ai:
 
 community:
   # Trang "Thảo luận cộng đồng" (nguồn kind: community — Discord, Shopify Community)
-  digest_hours: 24                # tóm tắt những gì bàn trong chừng này giờ
-  digest_every_hours: 6           # làm mới bản tóm tắt tối đa mỗi chừng này giờ (mỗi lần là một lần gọi Claude)
-  digest_effort: high             # tóm tắt thảo luận 24 giờ
+  # Mỗi bản tóm tắt chỉ gồm tin MỚI so với bản trước (không lặp lại), tối đa digest_hours giờ gần nhất.
+  digest_hours: 24                # không tóm tắt tin cũ hơn chừng này giờ
+  digest_every_hours: 6           # viết bản tóm tắt mới tối đa mỗi chừng này giờ (24 = mỗi ngày một bản gồm cả ngày)
+  digest_effort: high             # tóm tắt thảo luận
   summary_effort: high            # tóm tắt từng chủ đề Shopify Community
   max_chars: 80000                # giới hạn độ dài tin gửi Claude cho mỗi bản tóm tắt
 
