@@ -141,6 +141,8 @@ class AIResult(Base):
     sentiment: Mapped[str] = mapped_column(String(10), default="neu")  # neg|neu|pos
     impact: Mapped[str | None] = mapped_column(String(10), nullable=True)  # high|med|low
     deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Who it affects, comma-joined in AUDIENCES order: theme (code), partner (theme sellers), merchant.
+    affects: Mapped[str | None] = mapped_column(String(40), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

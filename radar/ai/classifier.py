@@ -3,7 +3,8 @@
 Candidates are items not yet analyzed, seen in the last `reclassify_days`,
 that passed the keyword filter (platform sources always pass). Each Claude
 call classifies `batch_size` items and returns tag, relevance, sentiment,
-impact, deadline and a Vietnamese summary. Items are recorded in ai_analyzed
+impact, who it affects (theme code, theme partners, merchants), deadline and a
+Vietnamese summary. Items are recorded in ai_analyzed
 whether or not they matched, so they are never sent twice. A failed batch is
 left unrecorded: those items stay visible through their keyword match
 (the keyword fallback) and are retried on the next run.
@@ -41,6 +42,9 @@ PENDING_BATCH_KEY = "_pending_batch_classify"
 
 NULLABLE_IMPACT = {"anyOf": [{"type": "string", "enum": ["high", "med", "low"]}, {"type": "null"}]}
 NULLABLE_DATE = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+# theme: theme code must change or can use it; partner: theme sellers on the Theme Store
+# (review, listing, policy, revenue); merchant: stores using the theme (editor, features).
+AUDIENCES = ("theme", "partner", "merchant")
 
 CLASSIFY_SCHEMA = {
     "type": "object",
@@ -55,10 +59,11 @@ CLASSIFY_SCHEMA = {
                     "score": {"type": "number"},
                     "sentiment": {"type": "string", "enum": ["neg", "neu", "pos"]},
                     "impact": NULLABLE_IMPACT,
+                    "affects": {"type": "array", "items": {"type": "string", "enum": list(AUDIENCES)}},
                     "deadline": NULLABLE_DATE,
                     "summary": {"type": "string"},
                 },
-                "required": ["id", "tag_id", "score", "sentiment", "impact", "deadline", "summary"],
+                "required": ["id", "tag_id", "score", "sentiment", "impact", "affects", "deadline", "summary"],
                 "additionalProperties": False,
             },
         }
@@ -157,6 +162,11 @@ def _parse_deadline(value: Any) -> date | None:
         return None
 
 
+def affects_value(value: Any) -> str | None:
+    chosen = set(value) if isinstance(value, list) else set()
+    return ",".join(a for a in AUDIENCES if a in chosen) or None
+
+
 def apply_results(
     session: Session,
     config: RadarConfig,
@@ -193,6 +203,7 @@ def apply_results(
                     score=result["score"],
                     sentiment=result.get("sentiment") if result.get("sentiment") in ("neg", "neu", "pos") else "neu",
                     impact=impact,
+                    affects=affects_value(result.get("affects")),
                     deadline=_parse_deadline(result.get("deadline")),
                 )
             )

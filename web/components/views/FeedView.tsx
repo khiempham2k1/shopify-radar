@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, errorText, useApi } from "@/lib/api";
 import { fmtNumber, KIND } from "@/lib/format";
 import type { Item, ItemList, Source, Tag } from "@/lib/types";
-import { FeedRow } from "../ItemRows";
+import { AffectsSelect, FeedRow } from "../ItemRows";
 import { notifyChanged, useToast } from "../Providers";
 import { Empty, ErrorBox, Loading } from "../States";
 
@@ -38,6 +38,7 @@ export function FeedView() {
   const [tag, setTag] = useState("");
   const [sentiment, setSentiment] = useState("");
   const [priorityOnly, setPriorityOnly] = useState(false);
+  const [affects, setAffects] = useState("");
 
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
@@ -53,8 +54,9 @@ export function FeedView() {
     if (tag) p.set("tag", tag);
     if (sentiment) p.set("sentiment", sentiment);
     if (priorityOnly) p.set("priority", "true");
+    if (affects) p.set("affects", affects);
     return p.toString();
-  }, [mode, q, source, tag, sentiment, priorityOnly]);
+  }, [mode, q, source, tag, sentiment, priorityOnly, affects]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -116,7 +118,7 @@ export function FeedView() {
   }
 
   const feedSources = (sources.data ?? []).filter((s) => s.kind !== "platform");
-  const filtered = Boolean(q || source || tag || sentiment || priorityOnly);
+  const filtered = Boolean(q || source || tag || sentiment || priorityOnly || affects);
   const modeInfo = MODES.find((m) => m.key === mode)!;
 
   return (
@@ -181,6 +183,7 @@ export function FeedView() {
             </option>
           ))}
         </select>
+        <AffectsSelect value={affects} onChange={setAffects} />
         <select className="field" value={sentiment} onChange={(e) => setSentiment(e.target.value)} aria-label="Cảm xúc">
           <option value="">Mọi cảm xúc</option>
           <option value="neg">Tiêu cực</option>

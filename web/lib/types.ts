@@ -1,6 +1,7 @@
 export type SourceKind = "platform" | "social" | "web";
 export type Sentiment = "neg" | "neu" | "pos";
 export type Impact = "high" | "med" | "low";
+export type Audience = "theme" | "partner" | "merchant";
 export type ItemStatus = "new" | "doing" | "done" | "dismissed";
 
 export interface TranscriptPoint {
@@ -40,6 +41,8 @@ export interface Item {
   relevance: number | null;
   sentiment: Sentiment | null;
   impact: Impact | null;
+  /** Who it affects: theme code, the company as Theme Store partner, merchants using the theme. */
+  affects: Audience[];
   deadline: string | null;
   days_left: number | null;
   status: ItemStatus;

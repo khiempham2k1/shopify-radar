@@ -360,3 +360,14 @@ def test_reset_classification_rebuilds_tags_and_reclassifies(session, config, fa
     classify(session, config, claude)
     assert {t.id for t in active_tags(session)}.isdisjoint(old_tags)
     assert session.scalar(select(func.count()).select_from(AIAnalyzed)) == 1
+
+
+def test_classify_stores_who_is_affected(session, config, fake_anthropic):
+    from radar.ai.classifier import CLASSIFY_SCHEMA, affects_value
+
+    add_items(session, config, "reddit", ["Looking for a Shopify theme with quick add"])
+    classify(session, config, ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic))
+    assert session.scalar(select(AIResult.affects)) == "theme,merchant"
+    assert "affects" in CLASSIFY_SCHEMA["properties"]["results"]["items"]["required"]
+    assert affects_value(["merchant", "bogus", "theme", "theme"]) == "theme,merchant"
+    assert affects_value([]) is None and affects_value(None) is None

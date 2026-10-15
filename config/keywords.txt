@@ -44,6 +44,17 @@ online store 2.0
 /\bproduct recommendations? api\b/
 /\/(products\/[\w-]+|recommendations\/products)\.js(on)?\b/
 
+[Storefront API trong theme]
+/\bstorefront api\b/
+/\bstorefront access token\b/
++theme
+
+[Partner & Theme Store]
+/\btheme store (listing|review|requirements?|submission|policy|policies)\b/
+/\bpartner (program|dashboard|agreement|policy|policies|payouts?)\b/
+/\brevenue share\b/
+/\btheme (partner|seller|developer) (program|payouts?|sales)\b/
+
 [App trong theme]
 /\bapp blocks?\b/
 /\btheme app extensions?\b/

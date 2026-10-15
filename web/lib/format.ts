@@ -1,8 +1,13 @@
-import type { Impact, ItemStatus, Sentiment, SourceKind } from "./types";
+import type { Audience, Impact, ItemStatus, Sentiment, SourceKind } from "./types";
 
 export const TZ = "Asia/Ho_Chi_Minh";
 
 export const IMPACT: Record<Impact, string> = { high: "Cao", med: "Trung bình", low: "Thấp" };
+export const AUDIENCE: Record<Audience, { label: string; hint: string }> = {
+  theme: { label: "Theme", hint: "Code theme phải sửa hoặc có thể dùng" },
+  partner: { label: "Partner", hint: "Công ty với tư cách Partner bán theme: duyệt, chính sách, listing, doanh thu" },
+  merchant: { label: "Merchant", hint: "Merchant dùng theme: editor, tính năng, nhu cầu" },
+};
 export const STATUS: Record<Exclude<ItemStatus, "dismissed">, string> = { new: "Chưa xem", doing: "Đang xử lý", done: "Xong" };
 export const SENTIMENT: Record<Sentiment, string> = { neg: "Tiêu cực", neu: "Trung tính", pos: "Tích cực" };
 export const KIND: Record<SourceKind, string> = { platform: "Nền tảng", social: "Social", web: "Web search" };

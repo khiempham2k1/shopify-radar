@@ -78,7 +78,7 @@ def default_responder(kwargs: dict[str, Any]):
         return make_message(
             {
                 "results": [
-                    {"id": i, "tag_id": tag_ids[0], "score": 0.9, "sentiment": "neg", "impact": "high", "deadline": "2027-01-01", "summary": f"Tóm tắt {i}"}
+                    {"id": i, "tag_id": tag_ids[0], "score": 0.9, "sentiment": "neg", "impact": "high", "affects": ["theme", "merchant"], "deadline": "2027-01-01", "summary": f"Tóm tắt {i}"}
                     for i in ids
                 ]
             }

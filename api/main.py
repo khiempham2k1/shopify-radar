@@ -135,6 +135,7 @@ def serialize_item(item: Item, analyzed_ids: set[int], full: bool = False) -> di
         "relevance": result.score if result else None,
         "sentiment": result.sentiment if result else None,
         "impact": result.impact if result else None,
+        "affects": result.affects.split(",") if result and result.affects else [],
         "deadline": result.deadline.isoformat() if result and result.deadline else None,
         "days_left": (result.deadline - today).days if result and result.deadline else None,
         "status": status.status if status else "new",
@@ -214,6 +215,7 @@ def list_items(
     tag: int | None = None,
     sentiment: Literal["neg", "neu", "pos"] | None = None,
     impact: Literal["high", "med", "low"] | None = None,
+    affects: Literal["theme", "partner", "merchant"] | None = None,
     status: Literal["new", "doing", "done", "dismissed"] | None = None,
     q: str | None = None,
     priority: bool = False,
@@ -253,7 +255,7 @@ def list_items(
         conditions.append(Item.source_id == source)
     if priority:
         conditions.append(Item.priority.is_not(None))
-    if tag is not None or sentiment or impact:
+    if tag is not None or sentiment or impact or affects:
         sub = select(AIResult.item_id).where(AIResult.status == "active", AIResult.score >= min_score)
         if tag is not None:
             sub = sub.where(AIResult.tag_id == tag)
@@ -261,6 +263,8 @@ def list_items(
             sub = sub.where(AIResult.sentiment == sentiment)
         if impact:
             sub = sub.where(AIResult.impact == impact)
+        if affects:
+            sub = sub.where(AIResult.affects.contains(affects))
         conditions.append(Item.id.in_(sub))
     if q:
         pattern = f"%{q.strip()}%"

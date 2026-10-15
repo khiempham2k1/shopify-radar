@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api, errorText } from "@/lib/api";
-import { dueClass, fmtClock, fmtDate, fmtDateTime, fmtDayMonth, fmtMetrics, IMPACT, SENTIMENT, STATUS, timeAgo, videoAt } from "@/lib/format";
+import { AUDIENCE, dueClass, fmtClock, fmtDate, fmtDateTime, fmtDayMonth, fmtMetrics, IMPACT, SENTIMENT, STATUS, timeAgo, videoAt } from "@/lib/format";
 import type { Item, ItemStatus } from "@/lib/types";
 import { notifyChanged, useToast, useUser } from "./Providers";
 
@@ -55,6 +55,15 @@ export function PriorityTags({ item }: { item: Item }) {
   );
 }
 
+function Affects({ item }: { item: Item }) {
+  if (item.affects.length === 0) return null;
+  return (
+    <span className="tag aud" title={`Ảnh hưởng tới: ${item.affects.map((a) => AUDIENCE[a].hint).join("; ")}`}>
+      Ảnh hưởng: {item.affects.map((a) => AUDIENCE[a].label).join(" · ")}
+    </span>
+  );
+}
+
 export function PlatformRow({ item, compact = false, onChange }: { item: Item; compact?: boolean; onChange?: (updated: Item) => void }) {
   const toast = useToast();
   const { email } = useUser();
@@ -97,6 +106,7 @@ export function PlatformRow({ item, compact = false, onChange }: { item: Item; c
           <PriorityTags item={item} />
           <span className="src">{item.source.name}</span>
           {date && <span title={fmtDateTime(date)}>{fmtDayMonth(date)}</span>}
+          <Affects item={item} />
           {item.tag && <span className="tag">{item.tag.name}</span>}
           {typeof item.extra?.section === "string" && <span className="tag">{item.extra.section}</span>}
         </div>
@@ -204,6 +214,7 @@ export function FeedRow({ item, compact = false, onDismiss }: { item: Item; comp
           {date && <span title={fmtDateTime(date)}>{timeAgo(date)}</span>}
           {isVideo(item) && duration ? <span className="mono">{fmtClock(duration)}</span> : null}
           {metrics && <span>{metrics}</span>}
+          <Affects item={item} />
           {item.tag && <span className="tag">{item.tag.name}</span>}
           {item.keyword_groups.map((k) => (
             <span key={k} className="tag kw" title="Nhóm từ khóa khớp">
@@ -226,5 +237,18 @@ export function FeedRow({ item, compact = false, onDismiss }: { item: Item; comp
         )}
       </div>
     </div>
+  );
+}
+
+export function AffectsSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select className="field" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Ảnh hưởng tới">
+      <option value="">Ảnh hưởng tới mọi bên</option>
+      {Object.entries(AUDIENCE).map(([k, v]) => (
+        <option key={k} value={k} title={v.hint}>
+          Ảnh hưởng tới {v.label}
+        </option>
+      ))}
+    </select>
   );
 }

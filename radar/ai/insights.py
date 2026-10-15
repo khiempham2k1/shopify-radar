@@ -101,8 +101,10 @@ def build_report(session: Session, config: RadarConfig, claude: ClaudeClient, to
             parts.append(f"ưu tiên: {item.priority}")
         if result is not None:
             parts.append(f"tag: {result.tag.tag}")
+            if result.affects:
+                parts.append(f"ảnh hưởng tới: {result.affects}")
             if result.impact:
-                parts.append(f"ảnh hưởng: {result.impact}")
+                parts.append(f"mức ảnh hưởng: {result.impact}")
             if result.deadline:
                 parts.append(f"hạn: {result.deadline.isoformat()}")
             parts.append(f"cảm xúc: {result.sentiment}")

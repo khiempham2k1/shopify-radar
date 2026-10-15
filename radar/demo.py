@@ -41,8 +41,8 @@ TAGS = [
 
 PLATFORM = [
     ("shopify-dev-changelog", "Theme Store raises the minimum mobile Lighthouse performance score", "Theme Store nâng ngưỡng Lighthouse mobile; áp dụng cho theme mới và bản cập nhật gửi duyệt.", 1, "high", 48, 0.95, "doing", "Minh", 2),
-    ("shopify-dev-changelog", "REST Admin API: legacy product fields removed in 2027-01", "Một số trường sản phẩm cũ trên REST bị gỡ; app đọc variant qua REST cần chuyển sang GraphQL.", 0, "high", 79, 0.9, "new", "", 5),
-    ("shopify-changelog", "Thank you page customizations move to checkout extensions only", "Script cũ trên trang cảm ơn sẽ ngừng chạy; app upsell sau mua phải chuyển sang extension.", 2, "high", 168, 0.88, "new", "", 6),
+    ("shopify-dev-changelog", "Cart Ajax API: legacy line item properties format removed", "Định dạng thuộc tính dòng hàng cũ trong /cart/add.js bị gỡ; theme gửi thuộc tính kiểu cũ cần cập nhật JS giỏ hàng.", 0, "high", 79, 0.9, "new", "", 5),
+    ("shopify-changelog", "Theme Store review adds automated accessibility checks", "Theme gửi duyệt phải qua bộ kiểm tra accessibility tự động; Partner cần sửa lỗi trước khi nộp bản cập nhật.", 1, "high", 168, 0.88, "new", "", 6),
     ("shopify-changelog", "Theme editor: block-level color schemes", "Merchant chỉnh màu ở cấp block; theme cần khai báo schema mới.", 3, "med", None, 0.8, "new", "", 7),
     ("github-releases", "Shopify/cli 3.x: theme dev flag rename", "Cờ cũ của lệnh theme dev vẫn chạy nhưng có cảnh báo; nên cập nhật script CI.", 3, "low", None, 0.6, "new", "", 13),
     ("shopify-dev-changelog", "Admin GraphQL API 2026-10 released", "Thêm trường cho metaobject, không có thay đổi phá vỡ với app hiện tại.", 0, "low", None, 0.55, "done", "Minh", 13),
@@ -84,7 +84,7 @@ def seed(session: Session) -> None:
         tags.append(tag)
     session.flush()
 
-    def add(source_id, title, summary, tag_index, sentiment, score, metrics, hours_ago, *, impact=None, deadline_days=None, media="post", extra=None, status=None, owner=""):
+    def add(source_id, title, summary, tag_index, sentiment, score, metrics, hours_ago, *, impact=None, deadline_days=None, media="post", extra=None, status=None, owner="", affects=None):
         item = Item(
             source_id=source_id,
             url=f"https://example.com/sample/{source_id}/{abs(hash(title)) % 10**8}",
@@ -107,6 +107,7 @@ def seed(session: Session) -> None:
                 score=score,
                 sentiment=sentiment,
                 impact=impact,
+                affects=affects or ("theme,merchant" if media == "change" else "merchant"),
                 deadline=today + timedelta(days=deadline_days) if deadline_days else None,
             )
         )
@@ -116,7 +117,8 @@ def seed(session: Session) -> None:
         return item
 
     for source_id, title, summary, tag_i, impact, deadline, score, status, owner, hours in PLATFORM:
-        add(source_id, title, summary, tag_i, "neu", score, {}, hours, impact=impact, deadline_days=deadline, media="change", status=status, owner=owner)
+        affects = "theme,partner" if "Theme Store" in title else "theme" if "API" in title or "cli" in title else None
+        add(source_id, title, summary, tag_i, "neu", score, {}, hours, impact=impact, deadline_days=deadline, media="change", status=status, owner=owner, affects=affects)
     for section, feature, tag_i in EDITION:
         add(
             "shopify-editions",

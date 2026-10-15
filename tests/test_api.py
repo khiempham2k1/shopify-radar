@@ -113,3 +113,10 @@ def test_priority_items_on_overview_and_filter(client):
     assert len(only) == 1 and "Shopify Canvas" in only[0]["title"]
     # Low AI score (0.45 < min_score) but still listed, and boosted above plain items with similar relevance.
     assert only[0]["relevance"] < 0.5
+
+
+def test_filter_by_who_is_affected(client):
+    partner = client.get("/api/items", params={"view": "platform", "affects": "partner"}).json()["items"]
+    assert partner and all("partner" in i["affects"] for i in partner)
+    assert all("Theme Store" in i["title"] for i in partner)
+    assert client.get("/api/items", params={"affects": "app"}).status_code == 422

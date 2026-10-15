@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { api, errorText, useApi } from "@/lib/api";
 import { fmtDateTime, fmtNumber } from "@/lib/format";
 import type { Edition, Item, ItemList, Source } from "@/lib/types";
-import { PlatformRow } from "../ItemRows";
+import { AffectsSelect, PlatformRow } from "../ItemRows";
 import { Empty, ErrorBox, Loading } from "../States";
 
 const PAGE = 30;
@@ -26,7 +26,7 @@ function EditionCard({ e }: { e: Edition }) {
       <div className="edition">
         <div>
           <b>{fmtNumber(e.relevant)}</b>
-          <span>tính năng liên quan theme/app (trên tổng {fmtNumber(e.total)})</span>
+          <span>tính năng liên quan theme (trên tổng {fmtNumber(e.total)})</span>
         </div>
         {s1 ? (
           <div>
@@ -64,6 +64,7 @@ export function PlatformView() {
   const editions = useApi<Edition[]>("editions");
   const sources = useApi<Source[]>("sources");
   const [source, setSource] = useState("");
+  const [affects, setAffects] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -74,6 +75,7 @@ export function PlatformView() {
   const query = (offset: number) => {
     const p = new URLSearchParams({ view: "platform", limit: String(PAGE), offset: String(offset) });
     if (source) p.set("source", source);
+    if (affects) p.set("affects", affects);
     return `items?${p}`;
   };
 
@@ -83,6 +85,7 @@ export function PlatformView() {
     setError(null);
     const p = new URLSearchParams({ view: "platform", limit: String(PAGE), offset: "0" });
     if (source) p.set("source", source);
+    if (affects) p.set("affects", affects);
     api<ItemList>(`items?${p}`, "GET", undefined, ctrl.signal)
       .then((d) => {
         setItems(d.items);
@@ -95,7 +98,7 @@ export function PlatformView() {
         setLoading(false);
       });
     return () => ctrl.abort();
-  }, [source, tick]);
+  }, [source, affects, tick]);
 
   async function loadMore() {
     setLoadingMore(true);
@@ -125,7 +128,7 @@ export function PlatformView() {
       {editions.error && <ErrorBox error={editions.error} onRetry={() => editions.reload()} prefix="Không tải được tóm tắt Editions" />}
       {editions.data?.slice(0, 2).map((e) => <EditionCard key={e.edition} e={e} />)}
 
-      <div className="filters" role="group" aria-label="Lọc theo nguồn">
+      <div className="filters" role="group" aria-label="Bộ lọc">
         <button type="button" className="chip" aria-pressed={source === ""} onClick={() => setSource("")}>
           Tất cả
         </button>
@@ -135,6 +138,8 @@ export function PlatformView() {
           </button>
         ))}
         {sources.error && <span className="muted">Không tải được danh sách nguồn.</span>}
+        <span className="spacer" />
+        <AffectsSelect value={affects} onChange={setAffects} />
       </div>
 
       <div className="panel">
@@ -142,7 +147,13 @@ export function PlatformView() {
         {loading ? (
           <Loading />
         ) : !error && items.length === 0 ? (
-          <Empty>{sourceName ? `Không có thay đổi nào từ ${sourceName} trong 60 ngày qua.` : "Chưa có thay đổi nền tảng nào trong 60 ngày qua."}</Empty>
+          <Empty>
+            {affects
+              ? "Không có thay đổi nào khớp bộ lọc trong 60 ngày qua."
+              : sourceName
+                ? `Không có thay đổi nào từ ${sourceName} trong 60 ngày qua.`
+                : "Chưa có thay đổi nền tảng nào trong 60 ngày qua."}
+          </Empty>
         ) : (
           <div className="list">
             {items.map((item) => (
