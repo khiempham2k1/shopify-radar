@@ -196,6 +196,12 @@ def seed(session: Session) -> None:
 
 
 def main() -> None:
+    from sqlalchemy import inspect
+
+    from radar.db import get_engine
+
+    if not inspect(get_engine()).has_table("settings"):
+        raise SystemExit("Chưa có bảng trong DB. Chạy `radar migrate` trước, rồi chạy lại lệnh này.")
     with session_scope() as session:
         seed(session)
     print("Đã nạp dữ liệu mẫu.")

@@ -62,7 +62,7 @@ pip install -e ".[dev]"
 cp .env.example .env        # điền ANTHROPIC_API_KEY, GROQ_API_KEY nếu muốn chạy thật
 radar migrate               # tạo DB SQLite ở .data/radar.db
 python -m radar.demo        # (tùy chọn) nạp dữ liệu mẫu để xem dashboard
-uvicorn api.main:app --port 8000
+python -m uvicorn api.main:app --port 8000
 ```
 
 `radar` và API tự đọc file `.env` ở thư mục gốc. Lệnh `radar` chỉ có khi virtualenv đang bật (`source .venv/bin/activate`).
