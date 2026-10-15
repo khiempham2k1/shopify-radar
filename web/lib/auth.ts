@@ -2,25 +2,11 @@ import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
+import { authDisabled, emailAllowed } from "./access";
+
+export { allowedDomains, authDisabled, canSeePhase2, emailAllowed, phase2Emails } from "./access";
+
 export const DEV_USER = "dev@local";
-
-export function authDisabled(): boolean {
-  return (process.env.AUTH_DISABLED ?? "").trim().toLowerCase() === "true";
-}
-
-export function allowedDomains(): string[] {
-  return (process.env.ALLOWED_EMAIL_DOMAINS ?? "")
-    .split(",")
-    .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
-    .filter(Boolean);
-}
-
-export function emailAllowed(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const domain = email.trim().toLowerCase().split("@").pop();
-  const allowed = allowedDomains();
-  return Boolean(domain) && allowed.includes(domain as string);
-}
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -42,7 +28,7 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-/** Email of the signed-in person, `dev@local` when AUTH_DISABLED=true, otherwise null. */
+/** Email of the signed-in person, `dev@local` when AUTH_DISABLED=true, otherwise null (not signed in). */
 export async function currentUserEmail(): Promise<string | null> {
   if (authDisabled()) return DEV_USER;
   const session = await getServerSession(authOptions);

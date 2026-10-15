@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Nav } from "@/components/Nav";
 import { Providers } from "@/components/Providers";
-import { authDisabled, currentUserEmail } from "@/lib/auth";
+import { Shell } from "@/components/Shell";
+import { authDisabled, canSeePhase2, currentUserEmail } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,15 +31,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
       </head>
       <body>
-        <Providers email={email ?? ""} authDisabled={authDisabled()}>
-          {email ? (
-            <div className="shell">
-              <Nav />
-              <main id="main">{children}</main>
-            </div>
-          ) : (
-            children
-          )}
+        <Providers email={email ?? ""} authDisabled={authDisabled()} phase2={canSeePhase2(email)}>
+          <Shell>{children}</Shell>
         </Providers>
       </body>
     </html>

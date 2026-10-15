@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { api, errorText } from "@/lib/api";
-import { AUDIENCE, dueClass, fmtClock, fmtDate, fmtDateTime, fmtDayMonth, fmtMetrics, IMPACT, SENTIMENT, STATUS, timeAgo, videoAt } from "@/lib/format";
-import type { Item, ItemStatus } from "@/lib/types";
-import { notifyChanged, useToast, useUser } from "./Providers";
+import { AUDIENCE, dueClass, fmtClock, fmtDate, fmtDateTime, fmtDayMonth, fmtMetrics, IMPACT, SENTIMENT, timeAgo, videoAt } from "@/lib/format";
+import type { Item } from "@/lib/types";
+import { useUser } from "./Providers";
 
 function External({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -22,25 +20,6 @@ export function Due({ deadline, days }: { deadline: string | null; days: number 
       {text} · {fmtDate(deadline)}
     </span>
   );
-}
-
-function shortTitle(title: string) {
-  return title.length > 52 ? title.slice(0, 50) + "…" : title;
-}
-
-/** PATCH /items/{id}; reports errors with a toast and returns the updated item or null. */
-function usePatchItem() {
-  const toast = useToast();
-  return async (item: Item, body: { status?: ItemStatus; owner?: string }): Promise<Item | null> => {
-    try {
-      const updated = await api<Item>(`items/${item.id}`, "PATCH", body);
-      notifyChanged();
-      return updated;
-    } catch (err) {
-      toast(`Không lưu được: ${errorText(err)}`, { tone: "error" });
-      return null;
-    }
-  };
 }
 
 export function PriorityTags({ item }: { item: Item }) {
@@ -64,36 +43,7 @@ function Affects({ item }: { item: Item }) {
   );
 }
 
-export function PlatformRow({ item, compact = false, onChange }: { item: Item; compact?: boolean; onChange?: (updated: Item) => void }) {
-  const toast = useToast();
-  const { email } = useUser();
-  const patch = usePatchItem();
-  const [busy, setBusy] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState<ItemStatus | null>(null);
-
-  async function changeStatus(status: ItemStatus) {
-    setBusy(true);
-    setPendingStatus(status);
-    const updated = await patch(item, { status });
-    setPendingStatus(null);
-    setBusy(false);
-    if (updated) {
-      onChange?.(updated);
-      toast(`Trạng thái: ${STATUS[status as keyof typeof STATUS] ?? status}`);
-    }
-  }
-
-  async function claim() {
-    setBusy(true);
-    const updated = await patch(item, item.status === "new" ? { owner: email, status: "doing" } : { owner: email });
-    setBusy(false);
-    if (updated) {
-      onChange?.(updated);
-      toast(`Đã nhận việc: ${shortTitle(item.title)}`);
-    }
-  }
-
-  const status = pendingStatus ?? item.status;
+export function PlatformRow({ item, compact = false }: { item: Item; compact?: boolean }) {
   const date = item.published_at || item.first_seen;
   return (
     <div className="row">
@@ -119,28 +69,6 @@ export function PlatformRow({ item, compact = false, onChange }: { item: Item; c
           <span className="pill low">{item.analyzed ? "Chưa rõ ảnh hưởng" : "Chưa phân tích"}</span>
         )}
         <Due deadline={item.deadline} days={item.days_left} />
-        <select
-          className="status"
-          aria-label={`Trạng thái: ${item.title}`}
-          value={status === "dismissed" ? "new" : status}
-          disabled={busy}
-          onChange={(e) => changeStatus(e.target.value as ItemStatus)}
-        >
-          {Object.entries(STATUS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <span className="owner">
-          {item.owner ? (
-            <>Phụ trách: {item.owner === email ? "bạn" : item.owner}</>
-          ) : (
-            <button type="button" className="btn" disabled={busy} onClick={claim}>
-              Nhận việc
-            </button>
-          )}
-        </span>
       </div>
     </div>
   );
@@ -198,6 +126,7 @@ export function sevClass(score: number) {
 }
 
 export function FeedRow({ item, compact = false, onDismiss }: { item: Item; compact?: boolean; onDismiss?: (item: Item) => void }) {
+  const { email } = useUser();
   const date = item.published_at || item.first_seen;
   const duration = (typeof item.extra?.duration === "number" ? item.extra.duration : null) ?? item.transcript?.duration_s ?? null;
   const metrics = fmtMetrics(item.metrics);
@@ -230,7 +159,7 @@ export function FeedRow({ item, compact = false, onDismiss }: { item: Item; comp
           {item.score.toFixed(1)}
         </span>
         {item.sentiment && <span className={`sent ${item.sentiment}`}>{SENTIMENT[item.sentiment]}</span>}
-        {!compact && onDismiss && (
+        {!compact && onDismiss && email && (
           <button type="button" className="btn" onClick={() => onDismiss(item)}>
             Không liên quan
           </button>

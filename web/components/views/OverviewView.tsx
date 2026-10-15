@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useApi } from "@/lib/api";
 import { describeCron, dueClass, fmtDate, fmtDateTime, fmtNumber, pctChange, signed } from "@/lib/format";
-import type { Item, Overview } from "@/lib/types";
+import type { Overview } from "@/lib/types";
 import { BarChart, Legend, type BarSeries } from "../BarChart";
 import { FeedRow, PlatformRow } from "../ItemRows";
 import { Empty, ErrorBox, Loading } from "../States";
@@ -35,9 +36,7 @@ function Kpis({ k }: { k: Overview["kpis"] }) {
       <div className="kpi">
         <span className="k">Cần xử lý</span>
         <span className="v">{fmtNumber(k.todo)}</span>
-        <span className="d">
-          chưa có người nhận: <b className={k.todo_unassigned ? "up-bad" : undefined}>{fmtNumber(k.todo_unassigned)}</b>
-        </span>
+        <span className="d">thay đổi mức cao và thảo luận điểm cao</span>
       </div>
       <div className="kpi">
         <span className="k">Hạn chót trong 90 ngày</span>
@@ -90,7 +89,7 @@ function Topics({ topics }: { topics: Overview["topics"] }) {
   );
 }
 
-function Priority({ data, onChange }: { data: Overview["priority"]; onChange: (updated: Item) => void }) {
+function Priority({ data }: { data: Overview["priority"] }) {
   if (data.topics.length === 0) return null;
   return (
     <div className="panel">
@@ -109,7 +108,7 @@ function Priority({ data, onChange }: { data: Overview["priority"]; onChange: (u
         <div className="list">
           {data.items.map((item) =>
             item.source.kind === "platform" ? (
-              <PlatformRow key={item.id} item={item} compact onChange={onChange} />
+              <PlatformRow key={item.id} item={item} compact />
             ) : (
               <FeedRow key={item.id} item={item} compact />
             ),
@@ -121,13 +120,13 @@ function Priority({ data, onChange }: { data: Overview["priority"]; onChange: (u
 }
 
 export function OverviewView() {
-  const { data, error, loading, reload, setData } = useApi<Overview>("overview");
+  const { data, error, loading, reload } = useApi<Overview>("overview");
+  const [denied, setDenied] = useState(false);
+  useEffect(() => {
+    // Set by the middleware when a signed-in account outside PHASE2_EMAILS opens a Phase 2 page.
+    setDenied(new URLSearchParams(window.location.search).get("denied") === "phase2");
+  }, []);
 
-  const replaceTodo = (updated: Item) => {
-    const swap = (list: Item[]) => list.map((i) => (i.id === updated.id ? updated : i));
-    setData((d) => (d ? { ...d, todo: swap(d.todo), priority: { ...d.priority, items: swap(d.priority.items) } } : d));
-    reload({ silent: true });
-  };
 
   const rows = (data?.daily ?? []).map((d) => ({
     label: d.date.slice(8, 10),
@@ -152,13 +151,14 @@ export function OverviewView() {
         )}
       </div>
 
+      {denied && <div className="notice">Tài khoản này không được xem Giai đoạn 2 (Báo cáo tuần, Cài đặt, Chi phí AI). Nhờ quản trị thêm email vào PHASE2_EMAILS.</div>}
       {error && <ErrorBox error={error} onRetry={() => reload()} />}
       {loading && !data && <Loading />}
 
       {data && (
         <>
           <Kpis k={data.kpis} />
-          {data.priority && <Priority data={data.priority} onChange={replaceTodo} />}
+          {data.priority && <Priority data={data.priority} />}
           <div className="grid-2">
             <div className="panel">
               <h2>Item mới theo ngày</h2>
@@ -187,7 +187,7 @@ export function OverviewView() {
               <div className="list">
                 {data.todo.map((item) =>
                   item.source.kind === "platform" ? (
-                    <PlatformRow key={item.id} item={item} compact onChange={replaceTodo} />
+                    <PlatformRow key={item.id} item={item} compact />
                   ) : (
                     <FeedRow key={item.id} item={item} compact />
                   ),

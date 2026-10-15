@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Logo } from "../Logo";
 
 const ERRORS: Record<string, string> = {
-  AccessDenied: "Tài khoản này không thuộc domain công ty nên không được vào dashboard.",
+  AccessDenied: "Tài khoản này không thuộc domain công ty và không có trong danh sách PHASE2_EMAILS.",
   OAuthSignin: "Không mở được trang đăng nhập Google. Thử lại sau.",
   OAuthCallback: "Google trả về lỗi khi đăng nhập. Thử lại sau.",
   Configuration: "Máy chủ chưa cấu hình đăng nhập Google. Báo cho người quản trị.",

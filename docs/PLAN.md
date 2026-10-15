@@ -176,7 +176,7 @@ Không dùng: các nguồn cần phiên đăng nhập trên Chrome desktop (Face
   - Cập nhật trạng thái và người phụ trách.
   - Thống kê tổng quan.
   - Sức khỏe nguồn.
-- [x] Đăng nhập Google, giới hạn trong domain công ty.
+- [x] Đăng nhập Google, giới hạn trong domain công ty. Sau khi chạy thử: Giai đoạn 1 xem không cần đăng nhập; Giai đoạn 2 chỉ cho email trong `PHASE2_EMAILS`. Bỏ trạng thái và "Nhận việc" trên từng thay đổi nền tảng.
 - [x] Màn hình:
   - **Tổng quan:** chỉ số tuần (số item mới theo chủ đề, cảm xúc, thay đổi nền tảng còn hạn) và danh sách "Cần xử lý".
   - **Thay đổi nền tảng:** timeline gộp dev changelog, Shopify Changelog và Shopify Editions; lọc theo nguồn; nhãn mức ảnh hưởng, đếm ngược hạn chót, trạng thái (chưa xem / đang xử lý / xong). Mỗi Edition có trang tóm tắt riêng, liệt kê các tính năng liên quan tới theme/app.
@@ -260,7 +260,7 @@ Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.m
 **Chưa kiểm tra được với dữ liệu thật:** môi trường phát triển bị chặn mạng tới Shopify, Reddit, X, YouTube, Exa, Jina, Hacker News và Groq, và không có Anthropic API key. Lần chạy đầu trên server nội bộ cần xem kỹ trang Sức khỏe nguồn. Riêng Shopify Changelog, Shopify Editions và Shopify Community, cách tách nội dung trang có thể cần chỉnh theo HTML thật (`link_pattern`, cách tách heading).
 
 **Team cần làm để chạy thật:**
-1. Điền `.env`: `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `RADAR_API_TOKEN`, Google OAuth, `ALLOWED_EMAIL_DOMAINS`, `NEXTAUTH_URL`, cookie X; chép `credential.json` của `rdt-cli` vào `secrets/rdt-cli/`.
+1. Điền `.env`: `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `RADAR_API_TOKEN`, Google OAuth, `ALLOWED_EMAIL_DOMAINS`, `PHASE2_EMAILS`, `NEXTAUTH_URL`, cookie X; chép `credential.json` của `rdt-cli` vào `secrets/rdt-cli/`.
 2. Dán URL RSS của Google Alerts vào `config/sources.yaml` (nguồn `google-alerts`).
 3. `docker compose up -d --build` trên server nội bộ, rồi chạy `docker compose exec worker radar doctor --network` và `radar run`.
 4. Sau 1–2 tuần, đánh giá theo tiêu chí hoàn thành (mục 3) và chỉnh `keywords.txt`, `interests.txt` trên trang Cài đặt.

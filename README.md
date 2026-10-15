@@ -27,6 +27,12 @@ Mỗi lần chạy (mặc định mỗi 2 giờ, xem `schedule.collect` trong `c
 7. **Chấm điểm** 0–10 dựa trên mức liên quan, tương tác, số nguồn cùng nhắc và độ mới (tính từ ngày đăng thật).
 8. **Báo cáo tuần** chạy sáng thứ Hai (effort `high`).
 
+## Quyền xem
+
+- **Giai đoạn 1** (Tổng quan, Thay đổi nền tảng, Feed, Sức khỏe nguồn): ai mở được dashboard đều xem được, không cần đăng nhập. Muốn bấm "Không liên quan" thì đăng nhập bằng tài khoản Google thuộc `ALLOWED_EMAIL_DOMAINS`.
+- **Giai đoạn 2** (Báo cáo tuần, Cài đặt, Chi phí AI): phải đăng nhập, và chỉ các email trong `PHASE2_EMAILS` (ngăn bằng dấu phẩy) mới thấy menu và mở được trang. API cũng chặn theo danh sách này, không chỉ ẩn menu.
+- `AUTH_DISABLED=true` (chỉ dùng khi chạy local) mở mọi trang, kể cả Giai đoạn 2.
+
 ## Chạy trên server nội bộ
 
 ```bash

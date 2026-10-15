@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUserEmail } from "@/lib/auth";
+import { canSeePhase2, currentUserEmail } from "@/lib/auth";
+import { isPhase2Api } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 // Weekly reports are written by Claude and can take a few minutes.
@@ -13,17 +14,22 @@ function apiBase(): string {
 
 async function proxy(req: NextRequest, ctx: Context): Promise<NextResponse> {
   const email = await currentUserEmail();
-  if (!email) {
-    return NextResponse.json({ detail: "Chưa đăng nhập hoặc phiên đã hết hạn" }, { status: 401 });
-  }
-
   const { path = [] } = await ctx.params;
   if (path.length === 0 || path.some((p) => p === "" || p === "." || p === "..")) {
     return NextResponse.json({ detail: "Đường dẫn không hợp lệ" }, { status: 400 });
   }
+  // Phase 1 is readable without signing in; changes and Phase 2 need an account.
+  if (isPhase2Api(path) && !canSeePhase2(email)) {
+    return email
+      ? NextResponse.json({ detail: "Tài khoản này không được xem Giai đoạn 2" }, { status: 403 })
+      : NextResponse.json({ detail: "Cần đăng nhập để xem Giai đoạn 2" }, { status: 401 });
+  }
+  if (!email && req.method !== "GET" && req.method !== "HEAD") {
+    return NextResponse.json({ detail: "Cần đăng nhập để thay đổi dữ liệu" }, { status: 401 });
+  }
   const target = `${apiBase()}/api/${path.map(encodeURIComponent).join("/")}${req.nextUrl.search}`;
 
-  const headers = new Headers({ Accept: "application/json", "X-Radar-User": email });
+  const headers = new Headers({ Accept: "application/json", "X-Radar-User": email ?? "anonymous" });
   const token = process.env.RADAR_API_TOKEN;
   if (token) headers.set("Authorization", `Bearer ${token}`);
 

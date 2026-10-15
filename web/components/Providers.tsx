@@ -3,11 +3,14 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 interface UserInfo {
+  /** Empty when nobody is signed in (Phase 1 is readable without an account). */
   email: string;
   authDisabled: boolean;
+  /** May open Phase 2 (account listed in PHASE2_EMAILS). */
+  phase2: boolean;
 }
 
-const UserContext = createContext<UserInfo>({ email: "", authDisabled: false });
+const UserContext = createContext<UserInfo>({ email: "", authDisabled: false, phase2: false });
 export const useUser = () => useContext(UserContext);
 
 interface ToastOptions {
@@ -30,7 +33,7 @@ export function notifyChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(CHANGED_EVENT));
 }
 
-export function Providers({ email, authDisabled, children }: { email: string; authDisabled: boolean; children: React.ReactNode }) {
+export function Providers({ email, authDisabled, phase2, children }: { email: string; authDisabled: boolean; phase2: boolean; children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,7 +49,7 @@ export function Providers({ email, authDisabled, children }: { email: string; au
   }, []);
 
   return (
-    <UserContext.Provider value={{ email, authDisabled }}>
+    <UserContext.Provider value={{ email, authDisabled, phase2 }}>
       <ToastContext.Provider value={show}>
         {children}
         <div aria-live="polite" role="status">

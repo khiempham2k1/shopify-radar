@@ -157,7 +157,7 @@ export function PlatformView() {
         ) : (
           <div className="list">
             {items.map((item) => (
-              <PlatformRow key={item.id} item={item} onChange={(u) => setItems((prev) => prev.map((i) => (i.id === u.id ? u : i)))} />
+              <PlatformRow key={item.id} item={item} />
             ))}
           </div>
         )}

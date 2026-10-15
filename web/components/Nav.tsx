@@ -27,7 +27,7 @@ function isActive(pathname: string, href: string) {
 
 export function Nav() {
   const pathname = usePathname() || "/";
-  const { email, authDisabled } = useUser();
+  const { email, authDisabled, phase2 } = useUser();
   const overview = useApi<Overview>("overview");
   const { reload } = overview;
   const todo = overview.data?.kpis.todo;
@@ -56,23 +56,40 @@ export function Nav() {
             ) : null}
           </Link>
         ))}
-        <div className="nav-label">Giai đoạn 2</div>
-        {PHASE_2.map((l) => (
-          <Link key={l.href} href={l.href} aria-current={isActive(pathname, l.href) ? "page" : undefined}>
-            {l.label} <span className="phase">GĐ 2</span>
-          </Link>
-        ))}
+        {/* Phase 2 is only for accounts listed in PHASE2_EMAILS; the middleware and API proxy enforce it too. */}
+        {phase2 && (
+          <>
+            <div className="nav-label">Giai đoạn 2</div>
+            {PHASE_2.map((l) => (
+              <Link key={l.href} href={l.href} aria-current={isActive(pathname, l.href) ? "page" : undefined}>
+                {l.label} <span className="phase">GĐ 2</span>
+              </Link>
+            ))}
+          </>
+        )}
       </nav>
       <div className="user">
-        <span className="email" title={email}>
-          {email}
-        </span>
         {authDisabled ? (
-          <span>Chế độ dev · không đăng nhập</span>
+          <>
+            <span className="email" title={email}>
+              {email}
+            </span>
+            <span>Chế độ dev · không đăng nhập</span>
+          </>
+        ) : email ? (
+          <>
+            <span className="email" title={email}>
+              {email}
+            </span>
+            <button type="button" className="linklike" onClick={() => signOut({ callbackUrl: "/" })}>
+              Đăng xuất
+            </button>
+          </>
         ) : (
-          <button type="button" className="linklike" onClick={() => signOut({ callbackUrl: "/login" })}>
-            Đăng xuất
-          </button>
+          <>
+            <span>Đang xem không đăng nhập</span>
+            <Link href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}>Đăng nhập</Link>
+          </>
         )}
       </div>
     </aside>
