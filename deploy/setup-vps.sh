@@ -113,6 +113,15 @@ fi
 echo "==> 5. Thư mục"
 mkdir -p secrets/rdt-cli backups
 chmod 700 secrets backups
+# Run with sudo: hand the files back to the user who called it, and let that user run docker.
+if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
+  chown "$SUDO_USER": .env
+  chown -R "$SUDO_USER": secrets backups
+  if ! id -nG "$SUDO_USER" | grep -qw docker; then
+    usermod -aG docker "$SUDO_USER"
+    echo "  đã thêm ${SUDO_USER} vào nhóm docker: đăng xuất SSH rồi vào lại để dùng lệnh docker không cần sudo"
+  fi
+fi
 
 ADMIN_PASSWORD_VALUE="$(grep -E '^ADMIN_PASSWORD=' .env | cut -d= -f2-)"
 if [[ "$MODE" == domain ]]; then
