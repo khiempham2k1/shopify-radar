@@ -10,3 +10,4 @@ web/out/
 *.egg-info/
 /tmp/
 .sandbox-ca.crt
+/backups/

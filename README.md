@@ -38,6 +38,10 @@ Mỗi lần chạy (mặc định mỗi 2 giờ, xem `schedule.collect` trong `c
 - Trang công khai không hiện chi tiết kỹ thuật (tên công cụ, lỗi chi tiết, cấu hình, DB). Tài khoản Giai đoạn 2 vẫn thấy cột "Công cụ đang dùng" và lỗi chi tiết ở Sức khỏe nguồn; trạng thái đăng nhập Reddit/X nằm ở trang Cài đặt.
 - `AUTH_DISABLED=true` (chỉ dùng khi chạy local) mở mọi trang, kể cả Giai đoạn 2.
 
+## Triển khai lên VPS (HTTPS, domain riêng)
+
+Xem [deploy/DEPLOY.md](deploy/DEPLOY.md): `sudo bash deploy/setup-vps.sh <domain>` cài Docker, firewall, tạo `.env` với các secret ngẫu nhiên; Caddy tự lấy chứng chỉ HTTPS; có script cập nhật (`deploy/update.sh`) và sao lưu Postgres (`deploy/backup.sh`).
+
 ## Chạy trên server nội bộ
 
 ```bash

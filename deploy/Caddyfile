@@ -1,0 +1,20 @@
+# Caddy: HTTPS tự động (Let's Encrypt) cho DOMAIN, chuyển tiếp vào dashboard.
+# Chỉ dashboard (web) ra Internet; API và Postgres nằm trong mạng nội bộ của Docker.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Báo cáo tuần do Claude viết có thể mất vài phút.
+	reverse_proxy web:3000 {
+		transport http {
+			response_header_timeout 10m
+		}
+	}
+}
