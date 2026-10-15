@@ -79,6 +79,19 @@ SessionDep = Annotated[Session, Depends(get_session)]
 UserDep = Annotated[str, Depends(current_user)]
 
 
+def is_admin(
+    x_radar_user: Annotated[str | None, Header()] = None,
+    x_radar_admin: Annotated[str | None, Header()] = None,
+) -> bool:
+    """Technical details (tools, config, database) are for Phase 2 accounts only.
+    The web proxy sets X-Radar-Admin for them; a direct call that does not come
+    through the proxy (no X-Radar-User, e.g. curl on the server) also counts."""
+    return x_radar_admin == "1" or not (x_radar_user or "").strip()
+
+
+AdminDep = Annotated[bool, Depends(is_admin)]
+
+
 # ── helpers ─────────────────────────────────────────────────────────
 
 
@@ -187,11 +200,11 @@ def analyzed_ids(session: Session, ids: list[int]) -> set[int]:
 
 
 @app.get("/api/health")
-def health() -> dict[str, Any]:
-    """Liveness plus which database the API reads (password hidden) and how much is in it."""
+def health(admin: AdminDep) -> dict[str, Any]:
+    """Liveness; for admins also which database the API reads (password hidden) and how much is in it."""
     from radar.db import db_status
 
-    return {"ok": True, **db_status()}
+    return {"ok": True, **db_status()} if admin else {"ok": True}
 
 
 @app.get("/api/me")
@@ -491,7 +504,7 @@ def tags(session: SessionDep, _: UserDep) -> list[dict[str, Any]]:
 
 
 @app.get("/api/health/sources")
-def source_health(session: SessionDep, _: UserDep) -> dict[str, Any]:
+def source_health(session: SessionDep, _: UserDep, admin: AdminDep) -> dict[str, Any]:
     day_ago = utcnow() - timedelta(days=1)
     latest_ids = select(func.max(SourceStatus.id)).group_by(SourceStatus.source_id)
     latest = {s.source_id: s for s in session.scalars(select(SourceStatus).where(SourceStatus.id.in_(latest_ids)))}
@@ -536,6 +549,11 @@ def source_health(session: SessionDep, _: UserDep) -> dict[str, Any]:
             videos["skipped_24h"] += count
     from radar.doctor import LOGIN_STATUS_KEY
 
+    if not admin:
+        # Public view: status and counts only, no tool names, error details or logins.
+        for row in out:
+            row.update(configured_backends=[], backend="", message="")
+        return {"sources": out, "videos": videos, "logins": None}
     login_row = session.get(Setting, LOGIN_STATUS_KEY)
     logins = json.loads(login_row.value) if login_row else {"checked_at": None, "checks": []}
     return {"sources": out, "videos": videos, "logins": logins}

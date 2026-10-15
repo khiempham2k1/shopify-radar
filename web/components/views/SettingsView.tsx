@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { api, errorText, useApi } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
-import type { SettingFile } from "@/lib/types";
+import type { HealthResponse, SettingFile } from "@/lib/types";
 import { useToast } from "../Providers";
 import { ErrorBox, Loading } from "../States";
+import { Logins } from "./HealthView";
 
 function Help({ name }: { name: string }) {
   switch (name) {
@@ -147,6 +148,7 @@ function Editor({ file, draft, onDraft, onSaved }: { file: SettingFile; draft: s
 
 export function SettingsView() {
   const { data, error, loading, reload, setData } = useApi<SettingFile[]>("settings");
+  const health = useApi<HealthResponse>("health/sources");
   const [active, setActive] = useState<string>("keywords.txt");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -220,6 +222,7 @@ export function SettingsView() {
           </>
         )}
       </div>
+      {health.data?.logins && <Logins logins={health.data.logins} />}
     </>
   );
 }

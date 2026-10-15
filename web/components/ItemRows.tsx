@@ -26,7 +26,7 @@ export function PriorityTags({ item }: { item: Item }) {
   return (
     <>
       {item.priority.map((p) => (
-        <span key={p} className="tag prio" title="Chủ đề ưu tiên (priorities.txt)">
+        <span key={p} className="tag prio" title="Chủ đề ưu tiên">
           ★ {p}
         </span>
       ))}
@@ -136,7 +136,7 @@ function Body({ item }: { item: Item }) {
   if (isVideo(item) && tx?.status === "done") {
     return (
       <>
-        <div className="tx-label">Tóm tắt từ nội dung video · {tx.via === "subtitle" ? "phụ đề" : "Groq Whisper"}</div>
+        <div className="tx-label">Tóm tắt từ nội dung video · {tx.via === "subtitle" ? "phụ đề" : "audio"}</div>
         {item.summary && (
           <div className="ai" style={{ marginTop: 2 }}>
             {item.summary}

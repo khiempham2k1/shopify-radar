@@ -30,6 +30,8 @@ async function proxy(req: NextRequest, ctx: Context): Promise<NextResponse> {
   const target = `${apiBase()}/api/${path.map(encodeURIComponent).join("/")}${req.nextUrl.search}`;
 
   const headers = new Headers({ Accept: "application/json", "X-Radar-User": email ?? "anonymous" });
+  // Tool names, error details, logins and database info only for Phase 2 accounts.
+  if (canSeePhase2(email)) headers.set("X-Radar-Admin", "1");
   const token = process.env.RADAR_API_TOKEN;
   if (token) headers.set("Authorization", `Bearer ${token}`);
 

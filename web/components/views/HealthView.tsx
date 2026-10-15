@@ -3,6 +3,7 @@
 import { useApi } from "@/lib/api";
 import { fmtDateTime, fmtNumber, fmtShortDateTime, KIND, timeAgo } from "@/lib/format";
 import type { HealthResponse, SourceHealth } from "@/lib/types";
+import { useUser } from "../Providers";
 import { Empty, ErrorBox, Loading } from "../States";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -23,7 +24,7 @@ function Backends({ s }: { s: SourceHealth }) {
     <>
       <span className={s.backend ? undefined : "muted"}>{s.backend || "–"}</span>
       {order.length > 1 && (
-        <div className="backends" title="Thứ tự ưu tiên trong sources.yaml">
+        <div className="backends" title="Thứ tự ưu tiên khi công cụ trước lỗi">
           <span>Thứ tự:</span>
           {order.map((b, i) => (
             <span key={b}>
@@ -37,7 +38,8 @@ function Backends({ s }: { s: SourceHealth }) {
   );
 }
 
-function Logins({ logins }: { logins: NonNullable<HealthResponse["logins"]> }) {
+/** Cookie status of the radar's own Reddit/X accounts. Shown on the Settings page (Phase 2 only). */
+export function Logins({ logins }: { logins: NonNullable<HealthResponse["logins"]> }) {
   return (
     <div className="panel">
       <div className="panel-head">
@@ -69,6 +71,8 @@ function Logins({ logins }: { logins: NonNullable<HealthResponse["logins"]> }) {
 }
 
 export function HealthView() {
+  // Phase 2 accounts see the technical details (tools, error messages); everyone else sees status only.
+  const { phase2 } = useUser();
   const { data, error, loading, reload } = useApi<HealthResponse>("health/sources");
   const counts = (data?.sources ?? []).reduce<Record<string, number>>((acc, s) => {
     acc[s.status] = (acc[s.status] || 0) + 1;
@@ -81,7 +85,7 @@ export function HealthView() {
       <div className="top">
         <div>
           <h1>Sức khỏe nguồn</h1>
-          <p>Lần chạy gần nhất của từng collector và công cụ đang dùng. Nguồn lỗi sẽ không có item mới cho tới khi được sửa.</p>
+          <p>Lần cập nhật gần nhất của từng nguồn. Nguồn lỗi sẽ không có tin mới cho tới khi được sửa.</p>
         </div>
         {data && (
           <div className="stamp">
@@ -103,18 +107,16 @@ export function HealthView() {
 
       {data && (
         <>
-          <Logins logins={data.logins ?? { checked_at: null, checks: [] }} />
-
           <div className="panel">
             {data.sources.length === 0 ? (
-              <Empty>Chưa có nguồn nào trong sources.yaml.</Empty>
+              <Empty>Chưa có nguồn nào.</Empty>
             ) : (
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>Nguồn</th>
-                      <th>Công cụ đang dùng</th>
+                      {phase2 && <th>Công cụ đang dùng</th>}
                       <th>Lần chạy cuối</th>
                       <th>Trạng thái</th>
                       <th className="num">Item lần chạy cuối</th>
@@ -126,14 +128,16 @@ export function HealthView() {
                       <tr key={s.id}>
                         <td>
                           <b>{s.name}</b> <span className="kind">· {KIND[s.kind] ?? s.kind}</span>
-                          {s.message && <div className="err-msg">{s.message}</div>}
+                          {phase2 && s.message && <div className="err-msg">{s.message}</div>}
                         </td>
-                        <td>
-                          <Backends s={s} />
-                        </td>
+                        {phase2 && (
+                          <td>
+                            <Backends s={s} />
+                          </td>
+                        )}
                         <td className="mono" style={{ whiteSpace: "nowrap" }} title={s.last_run ? `${fmtDateTime(s.last_run)} · ${timeAgo(s.last_run)}` : undefined}>
                           {s.last_run ? fmtShortDateTime(s.last_run) : "–"}
-                          {s.last_run && s.duration_ms > 0 && <div className="err-msg">{(s.duration_ms / 1000).toFixed(1)} giây</div>}
+                          {phase2 && s.last_run && s.duration_ms > 0 && <div className="err-msg">{(s.duration_ms / 1000).toFixed(1)} giây</div>}
                         </td>
                         <td style={{ whiteSpace: "nowrap" }}>
                           <span className={`dot ${dotClass(s.status)}`} aria-hidden="true" />
@@ -152,7 +156,7 @@ export function HealthView() {
           {v && (
             <div className="panel">
               <h2>Nội dung video</h2>
-              <p className="sub">Hàng đợi nghe video YouTube trong 24 giờ qua: phụ đề trước, Groq Whisper khi không có phụ đề.</p>
+              <p className="sub">Video YouTube được nghe và tóm tắt trong 24 giờ qua.</p>
               <div className="stats">
                 <div>
                   <b>{fmtNumber(v.subtitle_24h)}</b>
@@ -160,11 +164,11 @@ export function HealthView() {
                 </div>
                 <div>
                   <b>{fmtNumber(v.groq_24h)}</b>
-                  <span>video qua Groq</span>
+                  <span>video nghe từ audio</span>
                 </div>
                 <div>
                   <b>{fmtNumber(v.audio_minutes_24h)}</b>
-                  <span>phút audio gửi Groq</span>
+                  <span>phút audio đã nghe</span>
                 </div>
                 <div>
                   <b className={v.failed_24h ? "up-bad" : undefined}>{fmtNumber(v.failed_24h)}</b>

@@ -94,7 +94,7 @@ function Priority({ data }: { data: Overview["priority"] }) {
   return (
     <div className="panel">
       <h2>Chủ đề ưu tiên</h2>
-      <p className="sub">Cập nhật mới nhất về các chủ đề trong priorities.txt (sửa ở trang Cài đặt), 30 ngày qua</p>
+      <p className="sub">Cập nhật mới nhất về các chủ đề team đang theo sát, 30 ngày qua</p>
       <div className="prio-topics">
         {data.topics.map((t) => (
           <span key={t} className="tag prio">
@@ -123,7 +123,7 @@ export function OverviewView() {
   const { data, error, loading, reload } = useApi<Overview>("overview");
   const [denied, setDenied] = useState(false);
   useEffect(() => {
-    // Set by the middleware when a signed-in account outside PHASE2_EMAILS opens a Phase 2 page.
+    // Set by the middleware when a signed-in account without Phase 2 access opens a Phase 2 page.
     setDenied(new URLSearchParams(window.location.search).get("denied") === "phase2");
   }, []);
 
@@ -151,7 +151,7 @@ export function OverviewView() {
         )}
       </div>
 
-      {denied && <div className="notice">Tài khoản này không được xem Giai đoạn 2 (Báo cáo tuần, Cài đặt, Chi phí AI). Nhờ quản trị thêm email vào PHASE2_EMAILS.</div>}
+      {denied && <div className="notice">Tài khoản này chưa được cấp quyền xem Báo cáo tuần, Cài đặt và Chi phí AI. Nhờ quản trị cấp quyền.</div>}
       {error && <ErrorBox error={error} onRetry={() => reload()} />}
       {loading && !data && <Loading />}
 

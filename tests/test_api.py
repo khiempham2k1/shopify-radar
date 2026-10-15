@@ -120,3 +120,13 @@ def test_filter_by_who_is_affected(client):
     assert partner and all("partner" in i["affects"] for i in partner)
     assert all("Theme Store" in i["title"] for i in partner)
     assert client.get("/api/items", params={"affects": "app"}).status_code == 422
+
+
+def test_public_health_hides_tools_and_config(client):
+    public = {"X-Radar-User": "anonymous"}
+    data = client.get("/api/health/sources", headers=public).json()
+    assert data["logins"] is None and all(s["backend"] == "" and s["configured_backends"] == [] and s["message"] == "" for s in data["sources"])
+    assert client.get("/api/health", headers=public).json() == {"ok": True}
+    admin = {"X-Radar-User": "lead@company.com", "X-Radar-Admin": "1"}
+    assert client.get("/api/health/sources", headers=admin).json()["logins"] is not None
+    assert "db" in client.get("/api/health", headers=admin).json() and "db" in client.get("/api/health").json()

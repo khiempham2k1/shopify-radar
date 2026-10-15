@@ -127,8 +127,7 @@ export function FeedView() {
         <div>
           <h1>Feed</h1>
           <p>
-            Reddit, Shopify Community, X, YouTube, web search và Hacker News, đã lọc và chấm điểm. Video YouTube lấy nội dung từ phụ đề, hoặc Groq khi
-            không có phụ đề, rồi tóm tắt.
+            Reddit, Shopify Community, X, YouTube, web search và Hacker News, đã lọc và chấm điểm. Video YouTube được nghe và tóm tắt nội dung.
           </p>
         </div>
       </div>
@@ -145,7 +144,7 @@ export function FeedView() {
           type="button"
           className="chip"
           aria-pressed={priorityOnly}
-          title="Chỉ hiện item nhắc tới chủ đề ưu tiên trong priorities.txt"
+          title="Chỉ hiện tin về các chủ đề ưu tiên"
           onClick={() => setPriorityOnly((v) => !v)}
         >
           ★ Ưu tiên
