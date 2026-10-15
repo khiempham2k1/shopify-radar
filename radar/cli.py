@@ -131,6 +131,10 @@ def main(argv: list[str] | None = None) -> None:
     doctor.set_defaults(func=cmd_doctor)
     sub.add_parser("scheduler").set_defaults(func=cmd_scheduler)
     args = parser.parse_args(argv)
+    if args.command not in ("migrate", "doctor"):
+        from radar.db import ensure_schema
+
+        ensure_schema()
     args.func(args)
 
 

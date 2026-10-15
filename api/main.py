@@ -22,7 +22,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from radar.config_loader import EDITABLE_FILES, load_config, read_text, save_text
-from radar.db import describe_url, has_schema, migrate, session_factory
+from radar.db import describe_url, ensure_schema, session_factory
 from radar.models import (
     AIAnalyzed,
     AIResult,
@@ -47,9 +47,7 @@ log = logging.getLogger(__name__)
 async def lifespan(_: FastAPI):
     # Local runs often start the API before `radar migrate`: create the schema then.
     log.warning("Shopify Radar API dùng DB: %s", describe_url())
-    if not has_schema():
-        log.warning("DB chưa có bảng, đang chạy migration…")
-        migrate()
+    ensure_schema()
     yield
 
 
