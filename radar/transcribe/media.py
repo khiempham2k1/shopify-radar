@@ -17,6 +17,8 @@ from typing import Any
 
 import requests
 
+from radar.transcribe.groq_pool import INVALID_REST, GroqKeyPool, rest_from_response
+
 log = logging.getLogger(__name__)
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -198,38 +200,51 @@ def compress_and_chunk(source: Path, work_dir: Path, chunk_seconds: int, max_sec
     return chunks
 
 
-def groq_transcribe_chunk(path: Path, api_key: str, model: str, prompt: str, timeout: int = 300) -> dict[str, Any]:
-    with path.open("rb") as fh:
-        response = requests.post(
-            GROQ_ENDPOINT,
-            headers={"Authorization": f"Bearer {api_key}"},
-            files={"file": (path.name, fh, "audio/m4a")},
-            data={"model": model, "response_format": "verbose_json", "temperature": "0", "prompt": prompt[:800]},
-            timeout=timeout,
-        )
-    if response.status_code != 200:
+def groq_transcribe_chunk(path: Path, keys: GroqKeyPool | str, model: str, prompt: str, timeout: int = 300) -> dict[str, Any]:
+    """Send one chunk; on 429 (limit) or 401/403 (bad key) rest that key and send again with the next.
+    Raises GroqKeysExhausted when every key is resting."""
+    pool = keys if isinstance(keys, GroqKeyPool) else GroqKeyPool([keys])
+    for _ in range(len(pool.keys) + 1):
+        api_key = pool.acquire()
+        with path.open("rb") as fh:
+            response = requests.post(
+                GROQ_ENDPOINT,
+                headers={"Authorization": f"Bearer {api_key}"},
+                files={"file": (path.name, fh, "audio/m4a")},
+                data={"model": model, "response_format": "verbose_json", "temperature": "0", "prompt": prompt[:800]},
+                timeout=timeout,
+            )
+        if response.status_code == 200:
+            pool.ok(api_key)
+            return response.json()
+        if response.status_code == 429:
+            pool.rest(api_key, rest_from_response(response.headers, response.text), "Bị giới hạn (HTTP 429)")
+            continue
+        if response.status_code in (401, 403):
+            pool.rest(api_key, INVALID_REST, f"Key không dùng được (HTTP {response.status_code})")
+            continue
         raise TranscriptError(f"Groq trả về HTTP {response.status_code}: {response.text[:300]}")
-    return response.json()
+    raise TranscriptError("Groq từ chối mọi key")
 
 
 def transcribe_with_groq(
     url: str,
     work_dir: Path,
-    api_key: str,
+    keys: GroqKeyPool | str,
     model: str,
     terms: str,
     chunk_seconds: int = 600,
     max_seconds: int = 3600,
 ) -> Transcript:
-    if not api_key:
-        raise TranscriptError("Chưa cấu hình GROQ_API_KEY")
+    if not keys:
+        raise TranscriptError("Chưa cấu hình GROQ_API_KEYS")
     source = download_audio(url, work_dir)
     chunks = compress_and_chunk(source, work_dir, chunk_seconds, max_seconds)
     segments: list[dict[str, Any]] = []
     offset = 0.0
     language = ""
     for chunk in chunks:
-        data = groq_transcribe_chunk(chunk, api_key, model, terms)
+        data = groq_transcribe_chunk(chunk, keys, model, terms)
         language = language or data.get("language", "")
         for seg in data.get("segments") or []:
             text = (seg.get("text") or "").strip()

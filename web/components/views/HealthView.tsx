@@ -183,6 +183,23 @@ export function HealthView() {
                   <span>bỏ qua (quá dài)</span>
                 </div>
               </div>
+              {phase2 && data.groq_keys && data.groq_keys.length > 0 && (
+                <>
+                  <h3 className="sub-head">Groq key · xoay vòng, key bị giới hạn thì tạm nghỉ</h3>
+                  <ul className="checks">
+                    {data.groq_keys.map((k) => (
+                      <li key={k.name}>
+                        <span className={`dot ${k.status === "ok" ? "ok" : "warn"}`} aria-hidden="true" />
+                        <span>
+                          <b className="mono">{k.name}</b>{" "}
+                          <span className="kind">· {k.status === "ok" ? "Sẵn sàng" : `Đang nghỉ tới ${k.until ? fmtDateTime(k.until) : "–"}`}</span>
+                          {k.reason && <span className="err-msg"> · {k.reason}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
           )}
         </>

@@ -330,5 +330,6 @@ tfoot td { font-weight: 600; }
 }
 
 /* ── health: tool logins ─────────────────────────────────────── */
+.sub-head { font-size: 13px; font-weight: 600; margin: 18px 0 10px; }
 .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .checks li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; overflow-wrap: anywhere; }

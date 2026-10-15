@@ -102,7 +102,14 @@ def run_doctor(config: RadarConfig, network: bool = False) -> list[Check]:
 
     checks.append(Check("Anthropic API key", "ok" if settings.anthropic_api_key else "error", "Đã cấu hình" if settings.anthropic_api_key else "Thiếu ANTHROPIC_API_KEY"))
     if "youtube" in types:
-        checks.append(Check("Groq API key", "ok" if settings.groq_api_key else "warn", "Đã cấu hình" if settings.groq_api_key else "Thiếu GROQ_API_KEY: video không có phụ đề sẽ không được nghe"))
+        count = len(settings.groq_api_keys)
+        checks.append(
+            Check(
+                "Groq API key",
+                "ok" if count else "warn",
+                f"{count} key, dùng xoay vòng" if count else "Thiếu GROQ_API_KEYS: video không có phụ đề sẽ không được nghe",
+            )
+        )
         checks.append(check_command("yt-dlp", ["yt-dlp", "--version"], 'pip install -U "yt-dlp[default]"'))
         js = shutil.which("deno") or shutil.which("node")
         checks.append(Check("JS runtime cho yt-dlp", "ok" if js else "warn", js or "Cần Node.js hoặc Deno để yt-dlp đọc YouTube"))
@@ -113,8 +120,8 @@ def run_doctor(config: RadarConfig, network: bool = False) -> list[Check]:
         checks.append(check_http("Jina Reader", settings.jina_reader_base + "https://example.com"))
         checks.append(check_http("Hacker News API", "https://hn.algolia.com/api/v1/search?query=shopify&hitsPerPage=1"))
         checks.append(_check_exa())
-        if settings.groq_api_key:
-            checks.append(check_http("Groq API", "https://api.groq.com/openai/v1/models", {"Authorization": f"Bearer {settings.groq_api_key}"}))
+        for i, key in enumerate(settings.groq_api_keys, start=1):
+            checks.append(check_http(f"Groq API key {i} (…{key[-4:]})", "https://api.groq.com/openai/v1/models", {"Authorization": f"Bearer {key}"}))
     return checks
 
 

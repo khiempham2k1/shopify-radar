@@ -255,12 +255,12 @@ Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.m
 | Dashboard (8 màn hình, đăng nhập Google) | `web/` | `npm run build`, lint, typecheck; chạy thử với dữ liệu mẫu ở desktop, mobile và dark mode |
 | Docker Compose | `docker-compose.yml`, `docker/Dockerfile`, `web/Dockerfile` | Đã build cả hai image và chạy đủ 4 container (postgres, api, worker, web): migration, các trang web, proxy, `radar doctor`, một lượt `radar run`. Môi trường phát triển chặn kho gói Debian và GitHub, nên bản build thử thay `apt install ffmpeg` bằng ffmpeg tĩnh và lấy `rdt-cli` 0.4.1 từ PyPI; Dockerfile trong repo giữ nguyên |
 
-76 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
+82 test backend chạy trên cả SQLite và Postgres. CI ở `.github/workflows/ci.yml`.
 
 **Chưa kiểm tra được với dữ liệu thật:** môi trường phát triển bị chặn mạng tới Shopify, Reddit, X, YouTube, Exa, Jina, Hacker News và Groq, và không có Anthropic API key. Lần chạy đầu trên server nội bộ cần xem kỹ trang Sức khỏe nguồn. Riêng Shopify Changelog, Shopify Editions và Shopify Community, cách tách nội dung trang có thể cần chỉnh theo HTML thật (`link_pattern`, cách tách heading).
 
 **Team cần làm để chạy thật:**
-1. Điền `.env`: `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `RADAR_API_TOKEN`, Google OAuth, `PHASE2_EMAILS` (email quản trị), `NEXTAUTH_URL`, cookie X; chép `credential.json` của `rdt-cli` vào `secrets/rdt-cli/`.
+1. Điền `.env`: `ANTHROPIC_API_KEY`, `GROQ_API_KEYS` (nhiều key, xoay vòng), `RADAR_API_TOKEN`, Google OAuth, `PHASE2_EMAILS` (email quản trị), `NEXTAUTH_URL`, cookie X; chép `credential.json` của `rdt-cli` vào `secrets/rdt-cli/`.
 2. Dán URL RSS của Google Alerts vào `config/sources.yaml` (nguồn `google-alerts`).
 3. `docker compose up -d --build` trên server nội bộ, rồi chạy `docker compose exec worker radar doctor --network` và `radar run`.
 4. Sau 1–2 tuần, đánh giá theo tiêu chí hoàn thành (mục 3) và chỉnh `keywords.txt`, `interests.txt` trên trang Cài đặt.

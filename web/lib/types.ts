@@ -126,7 +126,9 @@ export interface LoginCheck {
 export interface HealthResponse {
   sources: SourceHealth[];
   /** Cookie/login checks of the collector tools (rdt-cli, twitter-cli…). Older APIs omit it. */
-  logins?: { checked_at: string | null; checks: LoginCheck[] };
+  logins?: { checked_at: string | null; checks: LoginCheck[] } | null;
+  /** Admin only: the Groq key pool (keys shown by their last 4 characters). */
+  groq_keys?: { name: string; status: "ok" | "resting"; until: string | null; reason: string }[];
   videos: {
     subtitle_24h: number;
     groq_24h: number;

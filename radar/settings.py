@@ -45,6 +45,11 @@ def _env_int(name: str, default: int) -> int:
     return int(value) if value else default
 
 
+def _groq_keys() -> tuple[str, ...]:
+    raw = _env("GROQ_API_KEYS").replace("\n", ",").split(",") + [_env("GROQ_API_KEY")]
+    return tuple(dict.fromkeys(k.strip() for k in raw if k.strip()))
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = field(default_factory=lambda: _env("DATABASE_URL", f"sqlite:///{ROOT / '.data' / 'radar.db'}"))
@@ -57,7 +62,9 @@ class Settings:
     api_token: str = field(default_factory=lambda: _env("RADAR_API_TOKEN"))
 
     anthropic_api_key: str = field(default_factory=lambda: _env("ANTHROPIC_API_KEY"))
-    groq_api_key: str = field(default_factory=lambda: _env("GROQ_API_KEY"))
+    # Groq keys for speech-to-text, used as a pool: GROQ_API_KEYS (comma or newline
+    # separated) plus the single GROQ_API_KEY. A rate-limited key rests while the next one works.
+    groq_api_keys: tuple[str, ...] = field(default_factory=lambda: _groq_keys())
 
     # Free collection endpoints (see docs/PLAN.md, "Dùng Agent Reach").
     jina_reader_base: str = field(default_factory=lambda: _env("JINA_READER_BASE", "https://r.jina.ai/"))
@@ -65,6 +72,11 @@ class Settings:
     http_proxy: str = field(default_factory=lambda: _env("RADAR_HTTP_PROXY"))
 
     request_timeout: int = field(default_factory=lambda: _env_int("RADAR_REQUEST_TIMEOUT", 30))
+
+    @property
+    def groq_api_key(self) -> str:
+        """First key of the pool, for callers that need just one (doctor, checks)."""
+        return self.groq_api_keys[0] if self.groq_api_keys else ""
 
 
 def get_settings() -> Settings:

@@ -20,6 +20,7 @@ from radar.config_loader import RadarConfig, load_prompt
 from radar.models import AIAnalyzed, AIResult, Item, ItemTranscript
 from radar.settings import get_settings
 from radar.transcribe import media
+from radar.transcribe.groq_pool import GroqKeyPool, GroqKeysExhausted
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ class VideoStats:
     done: int = 0
     via_subtitle: int = 0
     via_groq: int = 0
+    waiting_for_keys: int = 0
     skipped: int = 0
     failed: int = 0
     errors: list[str] = field(default_factory=list)
@@ -124,6 +126,7 @@ def process_videos(
 ) -> VideoStats:
     stats = VideoStats()
     settings = get_settings()
+    groq_keys = GroqKeyPool(list(settings.groq_api_keys), session=session)
     max_seconds = int(config.video.get("max_minutes", 60)) * 60
     langs = list(config.video.get("subtitle_langs", ["en", "vi"]))
     for item in candidates(session, config):
@@ -143,14 +146,14 @@ def process_videos(
             try:
                 transcript = fetch_subtitles(item.url, work_dir, langs)
             except media.SubtitleRateLimited:
-                if not settings.groq_api_key:
+                if not groq_keys:
                     raise
                 transcript = None  # captions are rate limited: listen to the audio instead
             if transcript is None:
                 transcript = transcribe_groq(
                     item.url,
                     work_dir,
-                    settings.groq_api_key,
+                    groq_keys,
                     config.video.get("groq_model", "whisper-large-v3-turbo"),
                     config.terms,
                     chunk_seconds=int(config.video.get("chunk_seconds", 600)),
@@ -159,6 +162,13 @@ def process_videos(
             if not transcript.segments:
                 raise media.TranscriptError("Transcript rỗng")
             summary = summarize(item, transcript, config, claude)
+        except GroqKeysExhausted as exc:
+            # Every key is resting: not this video's fault. Put it back and stop for this run.
+            row.status, row.error, row.attempts = "pending", str(exc), max(0, (row.attempts or 1) - 1)
+            stats.waiting_for_keys += 1
+            stats.errors.append(str(exc))
+            session.commit()
+            break
         except (media.TranscriptError, AIError) as exc:
             row.status, row.error = "error", str(exc)[:2000]
             stats.failed += 1
@@ -181,5 +191,8 @@ def process_videos(
         stats.done += 1
         stats.via_subtitle += int(transcript.via == "subtitle")
         stats.via_groq += int(transcript.via == "groq")
+        session.commit()
+    if groq_keys:
+        groq_keys.save()  # remember the round-robin position for the next run
         session.commit()
     return stats

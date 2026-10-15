@@ -558,10 +558,13 @@ def source_health(session: SessionDep, _: UserDep, admin: AdminDep) -> dict[str,
         # Public view: status and counts only, no tool names, error details or logins.
         for row in out:
             row.update(configured_backends=[], backend="", message="")
-        return {"sources": out, "videos": videos, "logins": None}
+        return {"sources": out, "videos": videos, "logins": None, "groq_keys": []}
+    from radar.transcribe.groq_pool import GroqKeyPool
+
     login_row = session.get(Setting, LOGIN_STATUS_KEY)
     logins = json.loads(login_row.value) if login_row else {"checked_at": None, "checks": []}
-    return {"sources": out, "videos": videos, "logins": logins}
+    groq_keys = GroqKeyPool(list(get_settings().groq_api_keys), session=session).status()
+    return {"sources": out, "videos": videos, "logins": logins, "groq_keys": groq_keys}
 
 
 # ── reports (Giai đoạn 2) ───────────────────────────────────────────
