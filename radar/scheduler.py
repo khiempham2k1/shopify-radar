@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -38,7 +40,15 @@ def run_scheduler() -> None:
         schedule = load_config(session).schedule
     tz = get_settings().timezone
     scheduler = BlockingScheduler(timezone=tz)
-    scheduler.add_job(_run_job, CronTrigger.from_crontab(schedule.get("collect", "7 */2 * * *"), timezone=tz), id="run", max_instances=1, coalesce=True)
+    # First run right away instead of waiting for the next cron slot (up to 2 hours).
+    scheduler.add_job(
+        _run_job,
+        CronTrigger.from_crontab(schedule.get("collect", "7 */2 * * *"), timezone=tz),
+        id="run",
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(ZoneInfo(tz)),
+    )
     scheduler.add_job(_report_job, CronTrigger.from_crontab(schedule.get("weekly_report", "52 7 * * 1"), timezone=tz), id="report", max_instances=1, coalesce=True)
     log.info("Scheduler started (%s): run=%s report=%s", tz, schedule.get("collect"), schedule.get("weekly_report"))
     scheduler.start()
