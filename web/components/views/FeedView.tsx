@@ -31,7 +31,7 @@ export function FeedView() {
   const toast = useToast();
   const sources = useApi<Source[]>("sources");
   const tags = useApi<Tag[]>("tags");
-  const [mode, setMode] = useState<Mode>("hot");
+  const [mode, setMode] = useState<Mode>("week");
   const [search, setSearch] = useState("");
   const q = useDebounced(search.trim(), 350);
   const [source, setSource] = useState("");

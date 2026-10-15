@@ -85,38 +85,61 @@ def parse_vtt(text: str) -> list[dict[str, Any]]:
     return segments
 
 
+class SubtitleRateLimited(TranscriptError):
+    """YouTube answered 429 while fetching captions; the audio path may still work."""
+
+
+def pick_subtitle(info: dict[str, Any], langs: list[str]) -> tuple[str, str, bool] | None:
+    """Choose ONE caption track: manual before automatic, then by `langs` order.
+
+    Returns (lang, vtt_url, automatic). Downloading a single track keeps us to
+    one caption request per video; asking for several languages is what made
+    YouTube answer 429.
+    """
+    for automatic, pool in ((False, info.get("subtitles") or {}), (True, info.get("automatic_captions") or {})):
+        for wanted in langs:
+            for lang in (wanted, f"{wanted}-orig"):
+                tracks = pool.get(lang) or []
+                vtt = next((t for t in tracks if t.get("ext") == "vtt" and t.get("url")), None)
+                if vtt:
+                    return lang.removesuffix("-orig"), vtt["url"], automatic
+    return None
+
+
 def fetch_subtitles(url: str, work_dir: Path, langs: list[str]) -> Transcript | None:
     """Manual subtitles first, then YouTube's automatic captions. None when neither exists."""
     import yt_dlp
 
-    work_dir.mkdir(parents=True, exist_ok=True)
-    duration = 0
-    for automatic in (False, True):
-        for old in work_dir.glob("*.vtt"):
-            old.unlink()
-        options = {
-            "quiet": True,
-            "no_warnings": True, "js_runtimes": {"deno": {}, "node": {}},
-            "skip_download": True,
-            "writesubtitles": not automatic,
-            "writeautomaticsub": automatic,
-            "subtitleslangs": langs,
-            "subtitlesformat": "vtt",
-            "outtmpl": str(work_dir / "%(id)s.%(ext)s"),
-        }
-        try:
-            with yt_dlp.YoutubeDL(options) as ydl:
-                info = ydl.extract_info(url, download=True) or {}
-        except yt_dlp.utils.DownloadError as exc:
-            raise TranscriptError(f"yt-dlp không lấy được phụ đề: {exc}") from exc
-        duration = int(info.get("duration") or duration)
-        files = sorted(work_dir.glob("*.vtt"), key=lambda p: _lang_rank(p, langs))
-        for path in files:
-            segments = parse_vtt(path.read_text(encoding="utf-8", errors="ignore"))
-            if segments:
-                lang = path.suffixes[-2].lstrip(".") if len(path.suffixes) >= 2 else ""
-                return Transcript(via="subtitle", segments=segments, language=lang, duration_s=duration, model="youtube-captions")
-    return None
+    options = {"quiet": True, "no_warnings": True, "no_color": True, "skip_download": True, "js_runtimes": {"deno": {}, "node": {}}}
+    try:
+        with yt_dlp.YoutubeDL(options) as ydl:
+            info = ydl.extract_info(url, download=False) or {}
+            choice = pick_subtitle(info, langs)
+            if choice is None:
+                return None
+            lang, vtt_url, automatic = choice
+            text = ydl.urlopen(vtt_url).read().decode("utf-8", errors="ignore")
+    except yt_dlp.utils.DownloadError as exc:
+        raise TranscriptError(f"yt-dlp không đọc được video: {_plain(exc)}") from exc
+    except yt_dlp.networking.exceptions.HTTPError as exc:
+        if exc.status == 429:
+            raise SubtitleRateLimited("YouTube giới hạn tải phụ đề (HTTP 429)") from exc
+        raise TranscriptError(f"Không tải được phụ đề: HTTP {exc.status}") from exc
+    segments = parse_vtt(text)
+    if not segments:
+        return None
+    return Transcript(
+        via="subtitle",
+        segments=segments,
+        language=lang,
+        duration_s=int(info.get("duration") or 0),
+        model="youtube-auto-captions" if automatic else "youtube-captions",
+    )
+
+
+def _plain(exc: Exception) -> str:
+    """yt-dlp messages carry ANSI colour codes; strip them for the dashboard."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", str(exc)).replace("ERROR: ", "").strip()
 
 
 def _lang_rank(path: Path, langs: list[str]) -> int:
@@ -127,7 +150,7 @@ def _lang_rank(path: Path, langs: list[str]) -> int:
 def video_duration(url: str) -> int:
     import yt_dlp
 
-    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "js_runtimes": {"deno": {}, "node": {}}, "skip_download": True}) as ydl:
+    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "no_color": True, "js_runtimes": {"deno": {}, "node": {}}, "skip_download": True}) as ydl:
         info = ydl.extract_info(url, download=False) or {}
     return int(info.get("duration") or 0)
 
@@ -149,7 +172,7 @@ def download_audio(url: str, work_dir: Path) -> Path:
     work_dir.mkdir(parents=True, exist_ok=True)
     options = {
         "quiet": True,
-        "no_warnings": True, "js_runtimes": {"deno": {}, "node": {}},
+        "no_warnings": True, "no_color": True, "js_runtimes": {"deno": {}, "node": {}},
         "format": "bestaudio/best",
         "outtmpl": str(work_dir / "source.%(ext)s"),
         "max_filesize": 512 * 1024 * 1024,
@@ -158,7 +181,7 @@ def download_audio(url: str, work_dir: Path) -> Path:
         with yt_dlp.YoutubeDL(options) as ydl:
             ydl.extract_info(url, download=True)
     except yt_dlp.utils.DownloadError as exc:
-        raise TranscriptError(f"yt-dlp không tải được audio: {exc}") from exc
+        raise TranscriptError(f"yt-dlp không tải được audio: {_plain(exc)}") from exc
     files = [p for p in work_dir.glob("source.*") if p.suffix not in (".part", ".ytdl")]
     if not files:
         raise TranscriptError("Không tìm thấy file audio sau khi tải")

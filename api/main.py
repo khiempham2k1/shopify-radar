@@ -216,7 +216,7 @@ def list_items(
 ) -> dict[str, Any]:
     config = load_config(session)
     min_score = float(config.ai.get("min_score", 0.5))
-    hot = float(config.scoring.get("hot_threshold", 6.0))
+    hot = float(config.scoring.get("hot_threshold", 5.0))
     now = utcnow()
 
     stmt = item_query().join(Source, Source.id == Item.source_id).outerjoin(ItemStatus, ItemStatus.item_id == Item.id)
@@ -381,7 +381,7 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         total = sum(counts.values())
         return round(counts.get("neg", 0) / total, 3) if total else None
 
-    todo = todo_items(session, min_score, float(config.scoring.get("todo_threshold", 7.8)))
+    todo = todo_items(session, min_score, float(config.scoring.get("todo_threshold", 7.0)))
     deadlines = [
         r.deadline
         for i in todo

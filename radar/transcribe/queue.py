@@ -139,7 +139,12 @@ def process_videos(
                 stats.skipped += 1
                 session.commit()
                 continue
-            transcript = fetch_subtitles(item.url, work_dir, langs)
+            try:
+                transcript = fetch_subtitles(item.url, work_dir, langs)
+            except media.SubtitleRateLimited:
+                if not settings.groq_api_key:
+                    raise
+                transcript = None  # captions are rate limited: listen to the audio instead
             if transcript is None:
                 transcript = transcribe_groq(
                     item.url,

@@ -314,3 +314,32 @@ def test_run_once_end_to_end(session, monkeypatch, fake_anthropic):
     summary = run_once(session, claude_client=fake_anthropic)
     assert summary.items_new == 1 and summary.classify.matched == 1 and not summary.errors
     assert session.scalar(select(Item)).score > 0
+
+
+def test_pick_subtitle_prefers_manual_then_language_order():
+    info = {
+        "subtitles": {"vi": [{"ext": "json3", "url": "x"}, {"ext": "vtt", "url": "manual-vi"}]},
+        "automatic_captions": {"en-orig": [{"ext": "vtt", "url": "auto-en"}], "vi": [{"ext": "vtt", "url": "auto-vi"}]},
+    }
+    assert media.pick_subtitle(info, ["en", "vi"]) == ("vi", "manual-vi", False)
+    assert media.pick_subtitle({"automatic_captions": info["automatic_captions"]}, ["en", "vi"]) == ("en", "auto-en", True)
+    assert media.pick_subtitle({}, ["en"]) is None
+
+
+def test_plain_strips_ansi():
+    assert media._plain(Exception("\x1b[0;31mERROR:\x1b[0m Unable to download")) == "Unable to download"
+
+
+def test_rate_limited_captions_fall_back_to_groq(session, config, fake_anthropic, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "k")
+    add_items(session, config, "youtube", ["Shopify theme review C"], media_type="video", extra={"duration": 300})
+    session.commit()
+    claude = make_claude(session, config, fake_anthropic)
+    classify(session, config, claude)
+
+    def limited(*a):
+        raise media.SubtitleRateLimited("429")
+
+    groq = lambda *a, **k: media.Transcript(via="groq", segments=[{"start": 0, "end": 1, "text": "x"}], audio_seconds=300)  # noqa: E731
+    stats = process_videos(session, config, claude, fetch_subtitles=limited, transcribe_groq=groq, get_duration=lambda u: 300)
+    assert stats.via_groq == 1 and stats.failed == 0

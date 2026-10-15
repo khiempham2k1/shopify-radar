@@ -31,15 +31,15 @@ video:
   min_score: 0.5                  # chỉ nghe video có điểm liên quan sơ bộ ≥ mức này
   max_minutes: 60
   max_per_run: 10
-  subtitle_langs: [en, en-US, vi]
+  subtitle_langs: [en, vi]       # chỉ tải 1 ngôn ngữ đầu tiên có sẵn (tải nhiều dễ bị YouTube chặn 429)
   groq_model: whisper-large-v3-turbo
   chunk_seconds: 600
 
 scoring:
   weights: {relevance: 0.5, engagement: 0.2, cross_source: 0.15, recency: 0.15}
   recency_half_life_hours: 48
-  hot_threshold: 6.0              # điểm ≥ mức này và còn mới trong 48 giờ = "Đang nổi"
-  todo_threshold: 7.8             # thảo luận điểm ≥ mức này vào danh sách "Cần xử lý"
+  hot_threshold: 5.0              # điểm ≥ mức này và còn mới trong 48 giờ = "Đang nổi"
+  todo_threshold: 7.0             # thảo luận điểm ≥ mức này vào danh sách "Cần xử lý"
 
 sources:
   # ── Nền tảng ────────────────────────────────────────────────
