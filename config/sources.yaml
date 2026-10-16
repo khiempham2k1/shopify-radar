@@ -179,7 +179,8 @@ sources:
     limit: 300                    # tin tối đa mỗi kênh mỗi lần
     # Dán link kênh (chuột phải vào kênh → Copy Link) hoặc ID kênh. Link có dạng
     # https://discord.com/channels/<ID server>/<ID kênh>: radar lấy ID kênh (số thứ hai).
-    channels: []                  # ví dụ: - {url: "https://discord.com/channels/111/222", name: "general"}
+    # Tên hiển thị lấy theo tên thật của kênh trên Discord; `name` chỉ dùng khi không đọc được tên đó.
+    channels: []                  # ví dụ: - "https://discord.com/channels/111/222"
 
   - id: youtube
     name: YouTube

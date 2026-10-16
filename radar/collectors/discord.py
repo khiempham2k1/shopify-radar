@@ -209,7 +209,7 @@ class DiscordCollector(Collector):
             try:
                 info = self._api(f"/channels/{channel_id}", token)
                 guild_id = str(info.get("guild_id") or "")
-                name = name or info.get("name") or channel_id
+                name = info.get("name") or name or channel_id  # the channel's real name; sources.yaml's only as fallback
                 after, fetched = snowflake_at(hours), 0
                 while fetched < self.limit * 2:
                     batch = self._api(f"/channels/{channel_id}/messages", token, limit=100, after=after)

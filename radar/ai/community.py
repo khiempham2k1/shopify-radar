@@ -392,9 +392,40 @@ def describe_images(session: Session, config: RadarConfig, claude: ClaudeClient)
     return done
 
 
+def sync_channel_names(session: Session) -> int:
+    """One name per Discord channel: the one its newest message was read with.
+
+    Messages read by discord-cli carry the channel's Discord name, those read
+    through the API once carried the name given in sources.yaml; without this
+    the same channel would show up twice on the page."""
+    sources = community_sources(session)
+    if not sources:
+        return 0
+    messages = list(
+        session.scalars(
+            select(Item).where(Item.source_id.in_(list(sources)), Item.media_type == "message").order_by(Item.first_seen.desc(), Item.id.desc())
+        )
+    )
+    latest: dict[str, str] = {}
+    for item in messages:
+        extra = item.extra or {}
+        if extra.get("channel_id") and extra.get("channel"):
+            latest.setdefault(extra["channel_id"], extra["channel"])
+    changed = 0
+    for item in messages:
+        extra = item.extra or {}
+        name = latest.get(extra.get("channel_id", ""))
+        if name and extra.get("channel") != name:
+            item.extra = {**extra, "channel": name}
+            changed += 1
+    session.flush()
+    return changed
+
+
 def refresh(session: Session, config: RadarConfig, claude: ClaudeClient, force: bool = False) -> dict[str, Any]:
     """Run step: describe attached images, translate new Discord messages, summarize new threads,
     rebuild the digest when due."""
+    sync_channel_names(session)
     described = describe_images(session, config, claude)
     translated = translate_messages(session, config, claude)
     summarized = summarize_threads(session, config, claude)

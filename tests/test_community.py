@@ -309,3 +309,17 @@ def test_image_only_message_needs_no_translation(session, config, fake_anthropic
     claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
     assert community.translate_messages(session, config, claude) == 0
     assert not [c for c in fake_anthropic.messages.calls if "translations" in c["output_config"]["format"]["schema"]["properties"]]
+
+
+def test_one_name_per_discord_channel(session, config):
+    from radar.collectors.discord import raw_message_to_item
+
+    old = message_to_item({**row("100", "from discord-cli", minutes_ago=60), "channel_name": "partners"})
+    store_items(session, "discord", [old], config.keywords, max_age_days=7)
+    session.flush()
+    new = raw_message_to_item(api_message("101", "through the API"), "111", "partners-chat")
+    store_items(session, "discord", [new], config.keywords, max_age_days=7)
+    session.flush()
+    assert community.sync_channel_names(session) == 1
+    names = {i.extra["channel"] for i in session.scalars(select(community.Item).where(community.Item.source_id == "discord"))}
+    assert names == {"partners-chat"}
