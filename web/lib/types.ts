@@ -228,6 +228,12 @@ export interface CommunityRef {
   embeds?: { title: string; description: string; url: string; site: string; image: string }[];
   /** What Claude saw in the attached images, in Vietnamese. */
   image_note?: string;
+  /** Discord: direct replies, the whole reply chain under it, engagement = 2 × chain + reactions. */
+  replies?: number;
+  thread?: number;
+  engagement?: number;
+  /** sort=hot: the replies of this conversation shown here, oldest first. */
+  thread_replies?: CommunityRef[];
 }
 
 export interface CommunityTopic {
@@ -237,6 +243,9 @@ export interface CommunityTopic {
   sources: string[];
   item_ids: number[];
   items: CommunityRef[];
+  /** Messages about this topic and people taking part (Claude's count; older digests lack them). */
+  mentions?: number;
+  people?: number;
 }
 
 export interface CommunityPage {
@@ -254,6 +263,7 @@ export interface CommunityPage {
   digests: { id: number; created_at: string | null; items_considered: number }[];
   hours: number;
   pending: number;
+  sort: "hot" | "new";
   threads: CommunityRef[];
   channels: { name: string; count: number; messages: CommunityRef[] }[];
   sources: { id: string; name: string; enabled: boolean }[];

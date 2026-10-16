@@ -91,7 +91,7 @@ def default_responder(kwargs: dict[str, Any]):
         return make_message(
             {
                 "overview": "Cộng đồng bàn nhiều về theme editor chậm.",
-                "topics": [{"title": "Theme editor chậm", "summary": "Nhiều người báo editor chậm.", "kind": "problem", "sources": ["Discord #general"], "item_ids": ids[:3] + [99999]}],
+                "topics": [{"title": "Theme editor chậm", "summary": "Nhiều người báo editor chậm.", "kind": "problem", "sources": ["Discord #general"], "item_ids": ids[:3] + [99999], "mentions": 2, "people": 2}],
                 "open_questions": [{"text": "Có cách nào tăng tốc editor?", "item_ids": ids[:1]}],
             }
         )

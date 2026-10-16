@@ -323,3 +323,27 @@ def test_one_name_per_discord_channel(session, config):
     assert community.sync_channel_names(session) == 1
     names = {i.extra["channel"] for i in session.scalars(select(community.Item).where(community.Item.source_id == "discord"))}
     assert names == {"partners-chat"}
+
+
+def conversation(session, config):
+    """#1 gets two replies and a reply to a reply; #4 has 3 reactions and no reply; #5 is alone."""
+    from radar.collectors.discord import raw_message_to_item
+
+    msgs = [
+        api_message("1", "Editor freezes with 30 sections, anyone?", timestamp=(utcnow() - timedelta(minutes=50)).isoformat()),
+        api_message("2", "Same here", message_reference={"message_id": "1"}, timestamp=(utcnow() - timedelta(minutes=40)).isoformat()),
+        api_message("3", "Try disabling apps", message_reference={"message_id": "1"}, timestamp=(utcnow() - timedelta(minutes=30)).isoformat()),
+        api_message("6", "That fixed it, thanks", message_reference={"message_id": "3"}, timestamp=(utcnow() - timedelta(minutes=20)).isoformat()),
+        api_message("4", "New Dawn release is out", reactions=[{"count": 3}], timestamp=(utcnow() - timedelta(minutes=15)).isoformat()),
+        api_message("5", "gm", timestamp=(utcnow() - timedelta(minutes=5)).isoformat()),
+    ]
+    store_items(session, "discord", [raw_message_to_item(m, "111", "general") for m in msgs], config.keywords, max_age_days=7)
+    session.flush()
+    return {i.external_id: i.id for i in session.scalars(select(community.Item).where(community.Item.source_id == "discord"))}
+
+
+def test_conversation_stats_count_the_whole_reply_chain(session, config):
+    ids = conversation(session, config)
+    stats = community.conversation_stats(session)
+    assert stats[ids["1"]] == {"replies": 2, "thread": 3, "reactions": 0, "engagement": 6}
+    assert stats[ids["3"]]["thread"] == 1 and stats[ids["4"]]["engagement"] == 3 and stats[ids["5"]]["engagement"] == 0

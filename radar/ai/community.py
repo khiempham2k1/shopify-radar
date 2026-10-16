@@ -53,8 +53,10 @@ DIGEST_SCHEMA = {
                     "kind": {"type": "string", "enum": TOPIC_KINDS},
                     "sources": {"type": "array", "items": {"type": "string"}},
                     "item_ids": {"type": "array", "items": {"type": "integer"}},
+                    "mentions": {"type": "integer"},
+                    "people": {"type": "integer"},
                 },
-                "required": ["title", "summary", "kind", "sources", "item_ids"],
+                "required": ["title", "summary", "kind", "sources", "item_ids", "mentions", "people"],
                 "additionalProperties": False,
             },
         },
@@ -171,6 +173,46 @@ def message_text(item: Item) -> str:
     return f"{text}\n[Nội dung ảnh: {note}]" if note else text
 
 
+def conversation_stats(session: Session, days: int = 7) -> dict[int, dict[str, int]]:
+    """How much each Discord message was talked about: direct replies, the whole reply
+    chain under it (replies to replies), reactions, and engagement = 2 × chain + reactions.
+    Counted over the community messages stored in the last `days`."""
+    sources = community_sources(session)
+    if not sources:
+        return {}
+    since = utcnow() - timedelta(days=days)
+    messages = list(
+        session.scalars(
+            select(Item).where(Item.source_id.in_(list(sources)), Item.media_type == "message", Item.first_seen >= since)
+        )
+    )
+    by_msg = {m.external_id: m for m in messages if m.external_id}
+    children: dict[int, list[int]] = defaultdict(list)
+    for m in messages:
+        parent = by_msg.get(str((m.extra or {}).get("reply_to") or ""))
+        if parent is not None and parent.id != m.id:
+            children[parent.id].append(m.id)
+
+    chain: dict[int, int] = {}
+
+    def size(item_id: int, path: frozenset[int] = frozenset()) -> int:
+        if item_id in chain:
+            return chain[item_id]
+        total = 0
+        for child in children.get(item_id, []):
+            if child not in path:  # a reply loop would never end
+                total += 1 + size(child, path | {item_id})
+        chain[item_id] = total
+        return total
+
+    stats = {}
+    for m in messages:
+        reactions = int((m.metrics or {}).get("likes", 0))
+        thread = size(m.id)
+        stats[m.id] = {"replies": len(children.get(m.id, [])), "thread": thread, "reactions": reactions, "engagement": 2 * thread + reactions}
+    return stats
+
+
 def place(item: Item, sources: dict[str, Source]) -> str:
     """Where it was said: "Discord #general" or "Shopify Community"."""
     source = sources.get(item.source_id)
@@ -179,7 +221,7 @@ def place(item: Item, sources: dict[str, Source]) -> str:
     return f"{name} #{channel}" if channel else name
 
 
-def render(items: list[Item], sources: dict[str, Source], max_chars: int) -> tuple[str, int]:
+def render(items: list[Item], sources: dict[str, Source], max_chars: int, stats: dict[int, dict[str, int]] | None = None) -> tuple[str, int]:
     """Messages grouped by place, each place given an equal share of the budget
     (newest kept when a busy channel is cut). Returns (text, how many were included)."""
     tz = ZoneInfo(get_settings().timezone)
@@ -194,7 +236,9 @@ def render(items: list[Item], sources: dict[str, Source], max_chars: int) -> tup
             if item.media_type == "message":
                 text = " ".join(message_text(item).split())[:600]
                 reply = " ↪" if (item.extra or {}).get("reply_to") else ""
-                line = f"[{item.id}] {when(item).astimezone(tz):%d/%m %H:%M}{reply} {item.author}: {text}"
+                stat = (stats or {}).get(item.id) or {}
+                talked = ", ".join(f"{n} {label}" for label, n in (("phản hồi", stat.get("thread", 0)), ("reaction", stat.get("reactions", 0))) if n)
+                line = f"[{item.id}] {when(item).astimezone(tz):%d/%m %H:%M}{reply} {item.author}: {text}" + (f" ({talked})" if talked else "")
             else:
                 body = " ".join((item.content or "").split())[:700]
                 line = f"[{item.id}] {when(item).astimezone(tz):%d/%m %H:%M} Chủ đề: {item.title}\n    {body}"
@@ -216,7 +260,7 @@ def build_digest(session: Session, config: RadarConfig, claude: ClaudeClient, no
     if not items:
         return None  # nothing new since the last digest
     sources = community_sources(session)
-    text, included = render(items, sources, int(settings.get("max_chars", 80000)))
+    text, included = render(items, sources, int(settings.get("max_chars", 80000)), conversation_stats(session))
     tz = ZoneInfo(get_settings().timezone)
     start = min(when(items[0]), now)
     prompt = load_prompt(
@@ -234,6 +278,10 @@ def build_digest(session: Session, config: RadarConfig, claude: ClaudeClient, no
     for section in ("topics", "open_questions"):
         for entry in data.get(section, []):
             entry["item_ids"] = [i for i in entry.get("item_ids", []) if i in known][:5]
+    for topic in data.get("topics", []):
+        topic["mentions"] = max(int(topic.get("mentions") or 0), len(topic["item_ids"]))
+        topic["people"] = max(int(topic.get("people") or 0), 0)
+    data["topics"] = sorted(data.get("topics", []), key=lambda t: (t["mentions"], t["people"]), reverse=True)
     counts: dict[str, int] = defaultdict(int)
     for item in items:
         counts[place(item, sources)] += 1

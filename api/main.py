@@ -556,12 +556,17 @@ def community_page(
     digest: int | None = None,
     hours: int = Query(24, ge=1, le=168),
     per_channel: int = Query(40, ge=1, le=200),
+    sort: str = Query("hot", pattern="^(hot|new)$"),
 ) -> dict[str, Any]:
     """What people discuss: the Vietnamese digest (latest, or the one asked for) and the
     threads and Discord messages behind it. Each digest holds only talk no earlier digest
     did, so nothing repeats from one to the next. Viewing the latest also lists what came
-    in after it (`pending`: summed up in the next digest). Not rated."""
-    from radar.ai.community import KIND, community_sources, place, window_items
+    in after it (`pending`: summed up in the next digest). Not rated.
+
+    Discord messages: sort=hot (default) lists the conversations people answered or
+    reacted to most first, each with its replies under it; sort=new lists every message,
+    newest first."""
+    from radar.ai.community import KIND, community_sources, conversation_stats, place, window_items
 
     sources = community_sources(session)
     digests = list(session.scalars(select(Report).where(Report.kind == KIND).order_by(Report.created_at.desc(), Report.id.desc()).limit(30)))
@@ -594,21 +599,53 @@ def community_page(
     else:
         pending_ids = set()
 
+    stats = conversation_stats(session)
+    no_stats = {"replies": 0, "thread": 0, "reactions": 0, "engagement": 0}
+
     def ref(item: Item) -> dict[str, Any]:
-        return {**community_ref(item, sources), "pending": item.id in pending_ids}
+        return {**community_ref(item, sources), "pending": item.id in pending_ids, **stats.get(item.id, no_stats)}
 
     threads = [ref(i) for i in reversed(items) if i.media_type != "message"]
+    messages = [i for i in reversed(items) if i.media_type == "message"]  # newest first
     channels: dict[str, list[dict[str, Any]]] = {}
-    for item in reversed(items):  # newest first
-        if item.media_type == "message":
+    if sort == "new":
+        for item in messages:
             channels.setdefault(place(item, sources), []).append(ref(item))
+    else:
+        # Each reply goes under the oldest message of its chain shown here; conversations by engagement.
+        by_msg = {i.external_id: i for i in messages if i.external_id}
+
+        def root(item: Item) -> Item:
+            seen = {item.id}
+            while (parent := by_msg.get(str((item.extra or {}).get("reply_to") or ""))) is not None and parent.id not in seen:
+                seen.add(parent.id)
+                item = parent
+            return item
+
+        replies: dict[int, list[Item]] = defaultdict(list)
+        roots: list[Item] = []
+        for item in messages:
+            top = root(item)
+            if top.id == item.id:
+                roots.append(item)
+            else:
+                replies[top.id].append(item)
+        roots.sort(key=lambda i: (stats.get(i.id, no_stats)["engagement"], i.published_at or i.first_seen), reverse=True)
+        for item in roots:
+            channels.setdefault(place(item, sources), []).append(
+                {**ref(item), "thread_replies": [ref(r) for r in sorted(replies[item.id], key=lambda r: r.published_at or r.first_seen)]}
+            )
     return {
         "digest": digest_out,
         "digests": [{"id": d.id, "created_at": iso(d.created_at), "items_considered": d.items_considered} for d in digests],
         "hours": hours,
         "pending": len(pending_ids),
         "threads": threads,
-        "channels": [{"name": name, "count": len(msgs), "messages": msgs[:per_channel]} for name, msgs in channels.items()],
+        "sort": sort,
+        "channels": [
+            {"name": name, "count": len(msgs) + sum(len(m.get("thread_replies", [])) for m in msgs), "messages": msgs[:per_channel]}
+            for name, msgs in channels.items()
+        ],
         "sources": [{"id": s.id, "name": s.name, "enabled": s.enabled} for s in sources.values()],
     }
 

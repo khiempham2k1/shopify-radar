@@ -27,6 +27,7 @@ from radar.ai.client import CallSpec, ClaudeClient
 from radar.ai.community import KIND as COMMUNITY_KIND
 from radar.ai.community import (
     community_sources,
+    conversation_stats,
     latest_digest,
     message_text,
     own_text,
@@ -109,16 +110,20 @@ def discussion_candidates(session: Session, since: datetime, digest: Report | No
             for entry in (digest.content or {}).get(section, []):
                 cited.update(entry.get("item_ids", []))
 
-    def weight(item: Item) -> tuple[int, int]:
+    stats = conversation_stats(session)
+
+    def weight(item: Item) -> tuple[bool, int]:
         metrics = item.metrics or {}
-        return (item.id in cited, int(metrics.get("comments", 0)) + int(metrics.get("likes", 0)))
+        talked = stats.get(item.id, {}).get("engagement", 0) + int(metrics.get("comments", 0)) + int(metrics.get("likes", 0))
+        return (item.id in cited, talked)
 
     return sorted(items, key=weight, reverse=True)[:limit]
 
 
-def discussion_line(item: Item, places: dict[str, Source]) -> str:
+def discussion_line(item: Item, places: dict[str, Source], stats: dict[int, dict[str, int]] | None = None) -> str:
     metrics = item.metrics or {}
-    counts = ", ".join(f"{n} {label}" for label, n in (("trả lời", metrics.get("comments", 0)), ("reaction", metrics.get("likes", 0))) if n)
+    replies = int(metrics.get("comments", 0)) or (stats or {}).get(item.id, {}).get("thread", 0)
+    counts = ", ".join(f"{n} {label}" for label, n in (("trả lời", replies), ("reaction", metrics.get("likes", 0))) if n)
     head = f"[{item.id}] {place(item, places)} · {item.author or 'ẩn danh'}" + (f" · {counts}" if counts else "")
     if item.media_type == "message":
         body = item.summary or own_text(message_text(item))
@@ -165,13 +170,14 @@ def build_brief(session: Session, config: RadarConfig, claude: ClaudeClient, now
     if not posts and not talks:
         return None
     places = community_sources(session)
+    stats = conversation_stats(session)
     prompt = load_prompt(
         "overview_brief",
         interests=config.interests,
         days=days,
         posts="\n".join(item_line(i, names) for i in posts) or "(không có)",
         digest=digest_text(digest),
-        discussions="\n".join(discussion_line(i, places) for i in sorted(talks, key=when, reverse=True)) or "(không có)",
+        discussions="\n".join(discussion_line(i, places, stats) for i in sorted(talks, key=when, reverse=True)) or "(không có)",
     )
     data = claude.call_json(CallSpec("brief", prompt.system, prompt.user, BRIEF_SCHEMA, effort=opts.get("brief_effort", "high"), max_tokens=16000))
 

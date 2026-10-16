@@ -9,12 +9,14 @@ Bạn tổng hợp thảo luận cộng đồng cho team làm theme trên Shopif
 
 1. Viết tiếng Việt, câu ngắn, giữ nguyên thuật ngữ kỹ thuật (Liquid, section, app block, Theme Store…).
 2. overview: 3–5 câu tóm tắt chung: cộng đồng bàn nhiều nhất về gì, có lỗi hay thay đổi nào nhiều người nhắc.
-3. topics: gom tin nhắn và chủ đề thành các chủ đề thảo luận (tối đa 12), xếp theo số người tham gia. Mỗi chủ đề:
+3. topics: gom tin nhắn và chủ đề thành các chủ đề thảo luận (tối đa 12), xếp theo số tin nhắc tới (nhiều nhất trước). Tin có "(N phản hồi, M reaction)" là tin được nhiều người hưởng ứng: coi trọng hơn. Mỗi chủ đề:
    - title: tên ngắn bằng tiếng Việt.
    - summary: 2–4 câu: mọi người hỏi hoặc nói gì, đã có câu trả lời hoặc cách xử lý nào chưa.
    - kind: question (hỏi đáp), problem (báo lỗi, phàn nàn), tip (chia sẻ mẹo, cách làm), news (tin tức, thông báo), discussion (bàn luận chung).
    - sources: nơi diễn ra, ghi như "Discord #general" hoặc "Shopify Community".
-   - item_ids: id các tin làm dẫn chứng (lấy từ danh sách), tối đa 5, chọn tin rõ nhất.
+   - item_ids: id các tin làm dẫn chứng (lấy từ danh sách), tối đa 5, chọn tin rõ nhất (ưu tiên tin mở đầu cuộc trao đổi nhiều phản hồi).
+   - mentions: số tin trong danh sách nói về chủ đề này (đếm cả tin trả lời).
+   - people: số người khác nhau tham gia chủ đề này.
 4. open_questions: câu hỏi đáng chú ý chưa ai trả lời (tối đa 8), mỗi câu ghi lại bằng tiếng Việt kèm item_ids.
 5. Bỏ qua chào hỏi, spam, quảng cáo dịch vụ, tin không có nội dung.
 6. Chỉ dựa vào tin được cung cấp, không bịa id và không suy đoán thêm.

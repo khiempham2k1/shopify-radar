@@ -134,7 +134,10 @@ function Digest({ data, onPick }: { data: CommunityPage; onPick: (id: number | n
               <summary>
                 <span className="c-kind">{TOPIC_KIND[t.kind] ?? t.kind}</span>
                 <b>{t.title}</b>
-                <span className="muted"> · {t.sources.join(", ")}</span>
+                <span className="muted">
+                  {t.mentions ? ` · ${fmtNumber(t.mentions)} tin` : ""}
+                  {t.people ? ` · ${fmtNumber(t.people)} người` : ""} · {t.sources.join(", ")}
+                </span>
               </summary>
               <p>{t.summary}</p>
               <Refs items={t.items} />
@@ -200,11 +203,52 @@ function Threads({ threads }: { threads: CommunityRef[] }) {
   );
 }
 
-function Channels({ channels }: { channels: CommunityPage["channels"] }) {
+function Message({ m }: { m: CommunityRef }) {
+  return (
+    <>
+      {m.pending && <span className="c-new">mới</span>}
+      <span className="mono muted">{m.when ? fmtDateTime(m.when) : ""}</span> <b>{m.author}</b>
+      {m.is_reply && <span className="muted"> ↪</span>}: {m.summary || ownText(m.text)}{" "}
+      <a href={m.url} target="_blank" rel="noopener noreferrer" className="c-link" aria-label="Mở tin trên Discord">
+        ↗
+      </a>
+      {((m.thread ?? 0) > 0 || m.reactions > 0) && (
+        <span className="c-stats">
+          {(m.thread ?? 0) > 0 && <span title="Số phản hồi, tính cả trả lời lồng nhau">💬 {fmtNumber(m.thread ?? 0)}</span>}
+          {m.reactions > 0 && <span title="Reaction">👍 {fmtNumber(m.reactions)}</span>}
+        </span>
+      )}
+      <MessageDetails m={m} />
+      {m.summary && m.summary !== ownText(m.text) && (
+        <details className="c-orig">
+          <summary>Bản gốc</summary>
+          {ownText(m.text)}
+        </details>
+      )}
+    </>
+  );
+}
+
+function Channels({ channels, sort, onSort }: { channels: CommunityPage["channels"]; sort: CommunityPage["sort"]; onSort: (s: CommunityPage["sort"]) => void }) {
   return (
     <div className="panel">
-      <h2>Discord</h2>
-      <p className="sub">Tin nhắn trong bản tóm tắt đang xem, theo kênh, dịch sang tiếng Việt (bấm “Bản gốc” để xem nguyên văn). Nhãn “mới”: đến sau bản tóm tắt.</p>
+      <div className="panel-head">
+        <h2>Discord</h2>
+        <div className="chips" role="group" aria-label="Sắp xếp tin Discord">
+          <button type="button" className="chip" aria-pressed={sort === "hot"} onClick={() => onSort("hot")}>
+            Nhiều phản hồi nhất
+          </button>
+          <button type="button" className="chip" aria-pressed={sort === "new"} onClick={() => onSort("new")}>
+            Mới nhất
+          </button>
+        </div>
+      </div>
+      <p className="sub">
+        {sort === "hot"
+          ? "Cuộc trao đổi được trả lời và thả reaction nhiều nhất lên đầu, phản hồi gom dưới tin gốc. "
+          : "Mọi tin, mới nhất trước. "}
+        Dịch sang tiếng Việt (bấm “Bản gốc” để xem nguyên văn). Nhãn “mới”: đến sau bản tóm tắt.
+      </p>
       {channels.length === 0 ? (
         <Empty>Chưa có tin nhắn Discord nào.</Empty>
       ) : (
@@ -218,18 +262,17 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
             <ul className="c-messages">
               {c.messages.map((m) => (
                 <li key={m.id}>
-                  {m.pending && <span className="c-new">mới</span>}
-                  <span className="mono muted">{m.when ? fmtDateTime(m.when) : ""}</span> <b>{m.author}</b>
-                  {m.is_reply && <span className="muted"> ↪</span>}: {m.summary || ownText(m.text)}{" "}
-                  <a href={m.url} target="_blank" rel="noopener noreferrer" className="c-link" aria-label="Mở tin trên Discord">
-                    ↗
-                  </a>
-                  {m.reactions > 0 && <span className="muted"> · {fmtNumber(m.reactions)} reaction</span>}
-                  <MessageDetails m={m} />
-                  {m.summary && m.summary !== ownText(m.text) && (
-                    <details className="c-orig">
-                      <summary>Bản gốc</summary>
-                      {ownText(m.text)}
+                  <Message m={m} />
+                  {(m.thread_replies?.length ?? 0) > 0 && (
+                    <details className="c-thread">
+                      <summary>Xem {fmtNumber(m.thread_replies!.length)} phản hồi</summary>
+                      <ul className="c-messages">
+                        {m.thread_replies!.map((r) => (
+                          <li key={r.id}>
+                            <Message m={r} />
+                          </li>
+                        ))}
+                      </ul>
                     </details>
                   )}
                 </li>
@@ -256,7 +299,10 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
 
 export function CommunityView() {
   const [digestId, setDigestId] = useState<number | null>(null);
-  const { data, error, loading, reload } = useApi<CommunityPage>(digestId ? `community?digest=${digestId}` : "community");
+  const [sort, setSort] = useState<CommunityPage["sort"]>("hot");
+  const params = new URLSearchParams({ sort });
+  if (digestId) params.set("digest", String(digestId));
+  const { data, error, loading, reload } = useApi<CommunityPage>(`community?${params}`);
 
   return (
     <>
@@ -273,7 +319,7 @@ export function CommunityView() {
           <Digest data={data} onPick={setDigestId} />
           <div className="grid-2">
             <Threads threads={data.threads} />
-            <Channels channels={data.channels} />
+            <Channels channels={data.channels} sort={sort} onSort={setSort} />
           </div>
         </>
       )}

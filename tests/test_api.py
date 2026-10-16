@@ -243,3 +243,25 @@ def test_overview_shows_the_brief(client, db_url, fake_anthropic):
     assert data["headline"] and data["highlights"][0]["items"]
     assert data["must_read"] and all(p["why"] and p["source"]["kind"] != "community" for p in data["must_read"])
     assert data["discussions"] and all(d["why"] and d["place"] for d in data["discussions"])
+
+
+def test_discord_sorted_by_replies_with_replies_nested(client, db_url):
+    from radar.config_loader import load_config
+    from tests.test_community import conversation
+
+    session = session_factory(db_url)()
+    ids = conversation(session, load_config(session))
+    session.commit()
+    session.close()
+
+    hot = client.get("/api/community", params={"hours": 2}).json()
+    general = {c["name"]: c for c in hot["channels"]}["Discord #general"]
+    order = [m["id"] for m in general["messages"]]
+    assert order[:3] == [ids["1"], ids["4"], ids["5"]]  # most answered, then reactions, then the rest by time
+    first = general["messages"][0]
+    assert first["thread"] == 3 and [r["id"] for r in first["thread_replies"]] == [ids["2"], ids["3"], ids["6"]]
+    assert general["count"] == 6
+
+    new = client.get("/api/community", params={"hours": 2, "sort": "new"}).json()
+    flat = {c["name"]: c for c in new["channels"]}["Discord #general"]["messages"]
+    assert [m["id"] for m in flat][:2] == [ids["5"], ids["4"]] and "thread_replies" not in flat[0]
