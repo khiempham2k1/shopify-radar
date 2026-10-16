@@ -173,6 +173,13 @@ def store_items(
                 row.metrics = {**(row.metrics or {}), **data.metrics}
             if data.content and not row.content:
                 row.content = data.content
+            if row.media_type == "message" and data.content and data.content != row.content:
+                # A chat message edited, or now read in full (attachments, link previews): keep the
+                # new text and translate it again.
+                row.content, row.title, row.summary = data.content, data.title[:2000], ""
+                row.extra = {**(row.extra or {}), **(data.extra or {})}
+            elif data.extra and set(data.extra) - set(row.extra or {}):
+                row.extra = {**data.extra, **(row.extra or {})}  # new details; what is stored stays
             if data.published_at and not row.published_at:
                 row.published_at = data.published_at
             posted_by = (data.extra or {}).get("posted_by")

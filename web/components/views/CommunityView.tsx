@@ -14,6 +14,76 @@ const TOPIC_KIND: Record<CommunityTopic["kind"], string> = {
   discussion: "Bàn luận",
 };
 
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp)$/i;
+const DETAIL_LINE = /^\[(Ảnh|Tệp|Link|Nội dung ảnh): .*\]$/;
+
+/** What the person wrote, without the [Ảnh: …] / [Link: …] lines (shown as details below instead). */
+function ownText(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !DETAIL_LINE.test(line.trim()))
+    .join("\n")
+    .trim();
+}
+
+/** Attachments, link previews and the message replied to, under a Discord message. */
+function MessageDetails({ m }: { m: CommunityRef }) {
+  const attachments = m.attachments ?? [];
+  const images = attachments.filter((a) => a.type.startsWith("image/") || IMAGE_EXT.test(a.name));
+  const files = attachments.filter((a) => !images.includes(a));
+  const embeds = m.embeds ?? [];
+  if (!m.reply_text && !attachments.length && !embeds.length && !m.image_note) return null;
+  return (
+    <div className="c-details">
+      {m.reply_text && (
+        <div className="c-reply">
+          ↪ trả lời <b>{m.reply_author || "ai đó"}</b>: {m.reply_text}
+        </div>
+      )}
+      {images.length > 0 && (
+        <div className="c-images">
+          {images.map((a) => (
+            <a key={a.url} href={a.url} target="_blank" rel="noopener noreferrer" title={a.name}>
+              {/* Discord's signed links expire after about a day; then only the name is left. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={a.url}
+                alt={a.name}
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.replaceWith(document.createTextNode(`🖼 ${a.name}`));
+                }}
+              />
+            </a>
+          ))}
+        </div>
+      )}
+      {m.image_note && <div className="c-note">🖼 {m.image_note}</div>}
+      {files.map((a) => (
+        <div key={a.url} className="c-file">
+          📎{" "}
+          <a href={a.url} target="_blank" rel="noopener noreferrer">
+            {a.name}
+          </a>
+        </div>
+      ))}
+      {embeds.map((e, i) => (
+        <div key={i} className="c-embed">
+          {e.site && <div className="muted">{e.site}</div>}
+          {e.url ? (
+            <a href={e.url} target="_blank" rel="noopener noreferrer">
+              <b>{e.title || e.url}</b>
+            </a>
+          ) : (
+            <b>{e.title}</b>
+          )}
+          {e.description && <div>{e.description}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Refs({ items }: { items: CommunityRef[] }) {
   if (items.length === 0) return null;
   return (
@@ -159,15 +229,16 @@ function Channels({ channels }: { channels: CommunityPage["channels"] }) {
                 <li key={m.id}>
                   {m.pending && <span className="c-new">mới</span>}
                   <span className="mono muted">{m.when ? fmtDateTime(m.when) : ""}</span> <b>{m.author}</b>
-                  {m.is_reply && <span className="muted"> ↪</span>}: {m.summary || m.text}{" "}
+                  {m.is_reply && <span className="muted"> ↪</span>}: {m.summary || ownText(m.text)}{" "}
                   <a href={m.url} target="_blank" rel="noopener noreferrer" className="c-link" aria-label="Mở tin trên Discord">
                     ↗
                   </a>
                   {m.reactions > 0 && <span className="muted"> · {fmtNumber(m.reactions)} reaction</span>}
-                  {m.summary && m.summary !== m.text && (
+                  <MessageDetails m={m} />
+                  {m.summary && m.summary !== ownText(m.text) && (
                     <details className="c-orig">
                       <summary>Bản gốc</summary>
-                      {m.text}
+                      {ownText(m.text)}
                     </details>
                   )}
                 </li>

@@ -509,6 +509,13 @@ def community_ref(item: Item, places: dict[str, str]) -> dict[str, Any]:
         "reactions": (item.metrics or {}).get("likes", 0),
         "comments": (item.metrics or {}).get("comments", 0),
         "is_reply": bool((item.extra or {}).get("reply_to")),
+        "reply_author": (item.extra or {}).get("reply_author", ""),
+        "reply_text": (item.extra or {}).get("reply_text", ""),
+        "attachments": [
+            {k: a.get(k) for k in ("name", "url", "type", "width", "height")} for a in (item.extra or {}).get("attachments", [])
+        ],
+        "embeds": (item.extra or {}).get("embeds", []),
+        "image_note": (item.extra or {}).get("image_note", ""),
     }
 
 

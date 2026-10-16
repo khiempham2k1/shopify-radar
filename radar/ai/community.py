@@ -6,6 +6,9 @@ These items are not classified or rated one by one. Instead:
   Claude calls, community.summary_effort);
 - every Discord message gets a Vietnamese translation, kept in `summary`
   (the page shows it, with the original one click away; community.translate_effort);
+- images attached to Discord messages are looked at by Claude while their
+  links still work (Discord's signed links expire within a day) and described
+  in Vietnamese in `extra.image_note` (community.describe_images);
 - a Vietnamese digest is written at most every `digest_every_hours` and
   stored as a Report with kind "community": overview, topics, open questions,
   each pointing at the messages it comes from. Each digest covers only what
@@ -17,6 +20,7 @@ These items are not classified or rated one by one. Instead:
 from __future__ import annotations
 
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -25,7 +29,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from radar.ai.client import AITruncated, CallSpec, ClaudeClient
+from radar.ai.client import AIError, AITruncated, CallSpec, ClaudeClient
 from radar.config_loader import RadarConfig, load_prompt
 from radar.models import Item, Report, Source, utcnow
 from radar.settings import get_settings
@@ -104,6 +108,15 @@ TRANSLATE_SCHEMA = {
 }
 
 
+IMAGE_SCHEMA = {
+    "type": "object",
+    "properties": {"note": {"type": "string"}},
+    "required": ["note"],
+    "additionalProperties": False,
+}
+MAX_IMAGES_PER_MESSAGE = 4
+
+
 def _aware(value: datetime) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
@@ -143,6 +156,21 @@ def previous_digest(session: Session, report: Report) -> Report | None:
     )
 
 
+DETAIL_LINE = re.compile(r"^\[(Ảnh|Tệp|Link|Nội dung ảnh): .*\]$")
+
+
+def own_text(content: str) -> str:
+    """What the person wrote, without the [Ảnh: …] / [Link: …] lines describing attachments."""
+    return "\n".join(line for line in (content or "").splitlines() if not DETAIL_LINE.match(line.strip())).strip()
+
+
+def message_text(item: Item) -> str:
+    """A chat message with what its images show, as Claude reads it."""
+    text = (item.content or "").strip()
+    note = (item.extra or {}).get("image_note")
+    return f"{text}\n[Nội dung ảnh: {note}]" if note else text
+
+
 def place(item: Item, sources: dict[str, Source]) -> str:
     """Where it was said: "Discord #general" or "Shopify Community"."""
     source = sources.get(item.source_id)
@@ -164,7 +192,7 @@ def render(items: list[Item], sources: dict[str, Source], max_chars: int) -> tup
         lines, used = [], 0
         for item in reversed(group):  # newest first while filling the share
             if item.media_type == "message":
-                text = " ".join(item.content.split())[:400]
+                text = " ".join(message_text(item).split())[:600]
                 reply = " ↪" if (item.extra or {}).get("reply_to") else ""
                 line = f"[{item.id}] {when(item).astimezone(tz):%d/%m %H:%M}{reply} {item.author}: {text}"
             else:
@@ -294,6 +322,7 @@ def translate_messages(session: Session, config: RadarConfig, claude: ClaudeClie
             .limit(limit)
         )
     )
+    pending = [i for i in pending if own_text(i.content)]  # only an image or a link: nothing to translate
     effort = config.section("community").get("translate_effort", "high")
     done = 0
     for start in range(0, len(pending), batch):
@@ -302,7 +331,7 @@ def translate_messages(session: Session, config: RadarConfig, claude: ClaudeClie
 
 
 def _translate_chunk(session: Session, claude: ClaudeClient, chunk: list[Item], effort: str) -> int:
-    listing = "\n\n".join(f"[id={i.id}] {(i.content or '').strip()[:1500]}" for i in chunk)
+    listing = "\n\n".join(f"[id={i.id}] {message_text(i)[:1800]}" for i in chunk)
     prompt = load_prompt("community_translate", count=len(chunk), items=listing)
     try:
         data = claude.call_json(CallSpec("community", prompt.system, prompt.user, TRANSLATE_SCHEMA, effort=effort, max_tokens=16000))
@@ -324,9 +353,50 @@ def _translate_chunk(session: Session, claude: ClaudeClient, chunk: list[Item], 
     return done
 
 
+def image_urls(item: Item) -> list[str]:
+    from radar.collectors.discord import is_image
+
+    return [a["url"] for a in (item.extra or {}).get("attachments", []) if is_image(a) and a.get("url")][:MAX_IMAGES_PER_MESSAGE]
+
+
+def describe_images(session: Session, config: RadarConfig, claude: ClaudeClient) -> int:
+    """Vietnamese description of the images attached to recent Discord messages."""
+    settings = config.section("community")
+    if not settings.get("describe_images", True):
+        return 0
+    sources = community_sources(session)
+    if not sources:
+        return 0
+    since = utcnow() - timedelta(hours=20)  # attachment links expire after about a day
+    candidates = session.scalars(
+        select(Item)
+        .where(Item.source_id.in_(list(sources)), Item.media_type == "message", Item.first_seen >= since)
+        .order_by(Item.first_seen.desc())
+    )
+    pending = [i for i in candidates if image_urls(i) and "image_note" not in (i.extra or {}) and not (i.extra or {}).get("image_failed")]
+    limit = int(settings.get("max_images_per_run", 40))
+    done = 0
+    for item in pending[:limit]:
+        prompt = load_prompt("community_image", message=(item.content or "")[:1500], author=item.author or "ẩn danh")
+        spec = CallSpec("community", prompt.system, prompt.user, IMAGE_SCHEMA, effort=settings.get("translate_effort", "high"), max_tokens=4000, images=image_urls(item))
+        try:
+            note = (claude.call_json(spec).get("note") or "").strip()
+        except AIError as exc:  # link expired, image unreadable, refused…: do not try again
+            log.warning("Image of message %s not described: %s", item.id, exc)
+            item.extra = {**(item.extra or {}), "image_failed": True}
+            continue
+        item.extra = {**(item.extra or {}), "image_note": note}
+        item.summary = ""  # translate again, now knowing what the image shows
+        done += 1
+    session.flush()
+    return done
+
+
 def refresh(session: Session, config: RadarConfig, claude: ClaudeClient, force: bool = False) -> dict[str, Any]:
-    """Run step: translate new Discord messages, summarize new threads, rebuild the digest when due."""
+    """Run step: describe attached images, translate new Discord messages, summarize new threads,
+    rebuild the digest when due."""
+    described = describe_images(session, config, claude)
     translated = translate_messages(session, config, claude)
     summarized = summarize_threads(session, config, claude)
     report = build_digest(session, config, claude) if (force or digest_due(session, config)) else None
-    return {"translated": translated, "summarized": summarized, "digest": report.id if report else None}
+    return {"images": described, "translated": translated, "summarized": summarized, "digest": report.id if report else None}

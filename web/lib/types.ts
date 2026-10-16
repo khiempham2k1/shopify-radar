@@ -209,6 +209,14 @@ export interface CommunityRef {
   is_reply: boolean;
   /** Came in after the digest shown: summed up in the next one. */
   pending?: boolean;
+  reply_author?: string;
+  reply_text?: string;
+  /** Discord attachments. Their links are signed by Discord and stop working after about a day. */
+  attachments?: { name: string; url: string; type: string; width: number | null; height: number | null }[];
+  /** Link previews. */
+  embeds?: { title: string; description: string; url: string; site: string; image: string }[];
+  /** What Claude saw in the attached images, in Vietnamese. */
+  image_note?: string;
 }
 
 export interface CommunityTopic {

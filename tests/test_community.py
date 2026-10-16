@@ -120,7 +120,7 @@ def test_next_digest_holds_only_new_talk(session, config, fake_anthropic):
 
 def test_no_digest_without_talk(session, config, fake_anthropic):
     claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
-    assert community.refresh(session, config, claude) == {"translated": 0, "summarized": 0, "digest": None}
+    assert community.refresh(session, config, claude) == {"images": 0, "translated": 0, "summarized": 0, "digest": None}
 
 
 def test_quiet_discord_channel_is_not_an_error(monkeypatch):
@@ -134,8 +134,7 @@ def test_quiet_discord_channel_is_not_an_error(monkeypatch):
     monkeypatch.setattr("radar.collectors.discord.run_cli", run_cli)
     collector = DiscordCollector({"id": "discord", "channels": [{"id": "222"}]})
     collector.http.pause = lambda *_: None
-    result = collector.collect()
-    assert result.status == "ok" and result.items == []
+    assert collector.fetch_discord_cli() == []
 
 
 def test_channel_from_link_or_id():
@@ -177,3 +176,136 @@ def test_reset_digests_starts_over(session, config, fake_anthropic):
     fresh = session.get(Report, community.refresh(session, config, claude, force=True)["digest"])
     assert fresh.items_considered == 6  # all talk of the last 24 h again, nothing lost
     assert session.scalar(select(community.Item).where(community.Item.external_id == "0")).summary  # translations kept
+
+
+def api_message(msg_id, content="", **fields):
+    return {
+        "id": msg_id,
+        "type": fields.pop("type", 0),
+        "channel_id": "222",
+        "content": content,
+        "timestamp": (utcnow() - timedelta(minutes=5)).isoformat(),
+        "author": {"username": "vikas", "global_name": "Vikas"},
+        **fields,
+    }
+
+
+def test_api_message_keeps_attachments_embeds_and_reply():
+    from radar.collectors.discord import raw_message_to_item
+
+    item = raw_message_to_item(
+        api_message(
+            "50",
+            "We checked this viraldeck and it looks like this-",
+            attachments=[{"filename": "Z.png", "url": "https://cdn.discordapp.com/attachments/1/2/Z.png?ex=1", "content_type": "image/png", "width": 800, "height": 600}],
+            embeds=[{"type": "link", "title": "Crisp Dezign", "description": "Shopify Partner", "url": "https://www.shopify.com/partners/directory/partner/crisp-dezign", "provider": {"name": "Shopify"}}],
+            message_reference={"message_id": "49"},
+            referenced_message={"id": "49", "content": "Who made this theme?", "author": {"username": "sul"}},
+            reactions=[{"count": 2}],
+        ),
+        guild_id="111",
+        channel_name="general",
+    )
+    assert item.url == "https://discord.com/channels/111/222/50" and item.author == "Vikas"
+    assert "[Ảnh: Z.png]" in item.content and "[Link: Shopify — Crisp Dezign — Shopify Partner — https://www.shopify.com/partners/directory/partner/crisp-dezign]" in item.content
+    assert item.extra["attachments"][0]["url"].startswith("https://cdn.discordapp.com/") and item.extra["embeds"][0]["site"] == "Shopify"
+    assert item.extra["reply_to"] == "49" and item.extra["reply_author"] == "sul" and item.extra["reply_text"] == "Who made this theme?"
+    assert item.metrics == {"likes": 2}
+    # Only images: titled after the file. Bots and system messages are left out.
+    only_image = raw_message_to_item(api_message("51", attachments=[{"filename": "image.png", "url": "https://cdn/x.png"}]), "111")
+    assert only_image.title == "image.png" and only_image.content == "[Ảnh: image.png]"
+    assert raw_message_to_item(api_message("52", "hi", author={"username": "bot", "bot": True})) is None
+    assert raw_message_to_item(api_message("53", "joined", type=7)) is None
+    assert raw_message_to_item(api_message("54")) is None
+
+
+def test_discord_api_pages_through_new_messages(monkeypatch):
+    monkeypatch.setenv("DISCORD_TOKEN", "radar-token")
+    calls = []
+
+    def api(self, path, token, **params):
+        calls.append((path, params.get("after")))
+        assert token == "radar-token"
+        if path == "/channels/222":
+            return {"id": "222", "name": "general", "guild_id": "111"}
+        if len([c for c in calls if c[0].endswith("/messages")]) == 1:
+            return [api_message(str(200 - i), f"message {i}") for i in range(100)]  # a full page, newest first
+        return [api_message("300", "the last one")]
+
+    monkeypatch.setattr(DiscordCollector, "_api", api)
+    collector = DiscordCollector({"id": "discord", "channels": ["https://discord.com/channels/111/222"], "backends": ["discord-cli"], "limit": 300})
+    collector.http.pause = lambda *_: None
+    assert collector.backends == ["discord-api", "discord-cli"]  # the API first even when only discord-cli is listed
+    items = collector.fetch_discord_api()
+    assert len(items) == 101 and items[0].extra["channel"] == "general"
+    message_calls = [c for c in calls if c[0].endswith("/messages")]
+    assert len(message_calls) == 2 and message_calls[1][1] == "200"  # second page starts after the newest id seen
+
+
+def test_message_read_in_full_later_is_updated_and_translated_again(session, config):
+    from radar.collectors.discord import raw_message_to_item
+
+    old = message_to_item(row("60", "look at this\n[attachment: Z.png]"))
+    store_items(session, "discord", [old], config.keywords, max_age_days=7)
+    stored = session.scalar(select(community.Item).where(community.Item.external_id == "60"))
+    stored.summary = "bản dịch cũ"
+    full = raw_message_to_item(api_message("60", "look at this", attachments=[{"filename": "Z.png", "url": "https://cdn/Z.png", "content_type": "image/png"}]), "111", "general")
+    store_items(session, "discord", [full], config.keywords, max_age_days=7)
+    assert stored.content == "look at this\n[Ảnh: Z.png]" and stored.summary == ""
+    assert stored.extra["attachments"][0]["name"] == "Z.png"
+
+
+def test_images_are_described_and_fed_to_translation(session, config, fake_anthropic):
+    from radar.collectors.discord import raw_message_to_item
+
+    msg = raw_message_to_item(
+        api_message("70", "is this a bug?", attachments=[{"filename": "err.png", "url": "https://cdn.discordapp.com/err.png", "content_type": "image/png"}]),
+        "111",
+        "general",
+    )
+    store_items(session, "discord", [msg], config.keywords, max_age_days=7)
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    result = community.refresh(session, config, claude)
+    assert result["images"] == 1
+    item = session.scalar(select(community.Item).where(community.Item.external_id == "70"))
+    assert item.extra["image_note"] == "Ảnh chụp thông báo lỗi trong theme editor."
+    image_call = next(c for c in fake_anthropic.messages.calls if "note" in c["output_config"]["format"]["schema"]["properties"])
+    assert image_call["messages"][0]["content"][0] == {"type": "image", "source": {"type": "url", "url": "https://cdn.discordapp.com/err.png"}}
+    translate_call = next(c for c in fake_anthropic.messages.calls if "translations" in c["output_config"]["format"]["schema"]["properties"])
+    assert "[Nội dung ảnh: Ảnh chụp thông báo lỗi trong theme editor.]" in translate_call["messages"][0]["content"]
+    # Described once: the next run does not look again.
+    assert community.refresh(session, config, claude)["images"] == 0
+
+
+def test_unreadable_image_is_not_retried(session, config, fake_anthropic):
+    from radar.collectors.discord import raw_message_to_item
+    from tests.conftest import default_responder
+
+    msg = raw_message_to_item(api_message("80", "", attachments=[{"filename": "gone.png", "url": "https://cdn/gone.png", "content_type": "image/png"}]), "111")
+    store_items(session, "discord", [msg], config.keywords, max_age_days=7)
+
+    def responder(kwargs):
+        if "note" in kwargs["output_config"]["format"]["schema"]["properties"]:
+            import anthropic
+            import httpx
+
+            raise anthropic.BadRequestError("Could not fetch image", response=httpx.Response(400, request=httpx.Request("POST", "https://api")), body=None)
+        return default_responder(kwargs)
+
+    fake_anthropic.messages.responder = responder
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    assert community.describe_images(session, config, claude) == 0
+    item = session.scalar(select(community.Item).where(community.Item.external_id == "80"))
+    assert item.extra["image_failed"] is True
+    assert community.describe_images(session, config, claude) == 0
+
+
+def test_image_only_message_needs_no_translation(session, config, fake_anthropic):
+    from radar.collectors.discord import raw_message_to_item
+
+    assert community.own_text("look\n[Ảnh: a.png]\n[Link: Shopify — x]") == "look"
+    msg = raw_message_to_item(api_message("90", attachments=[{"filename": "a.png", "url": "https://cdn/a.png", "content_type": "image/png"}]), "111")
+    store_items(session, "discord", [msg], config.keywords, max_age_days=7)
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    assert community.translate_messages(session, config, claude) == 0
+    assert not [c for c in fake_anthropic.messages.calls if "translations" in c["output_config"]["format"]["schema"]["properties"]]

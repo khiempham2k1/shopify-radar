@@ -350,6 +350,12 @@ tfoot td { font-weight: 600; }
 .c-quote { color: var(--muted); overflow-wrap: anywhere; }
 .c-questions { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 .c-link { margin-left: 8px; font-size: 12.5px; }
+.c-details { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; font-size: 12.5px; }
+.c-reply { color: var(--muted); border-left: 2px solid var(--line); padding-left: 8px; }
+.c-images { display: flex; flex-wrap: wrap; gap: 6px; }
+.c-images img { max-width: 220px; max-height: 160px; border-radius: 6px; border: 1px solid var(--line); object-fit: cover; display: block; }
+.c-note { color: var(--muted); }
+.c-embed { border-left: 3px solid var(--accent); background: var(--surface); padding: 6px 10px; border-radius: 0 6px 6px 0; max-width: 520px; }
 .c-orig { margin-top: 2px; font-size: 12px; color: var(--muted); }
 .c-orig > summary { cursor: pointer; width: fit-content; }
 .c-new { font-size: 11px; color: var(--accent); background: var(--accent-soft); border-radius: 5px; padding: 0 6px; margin-right: 4px; }

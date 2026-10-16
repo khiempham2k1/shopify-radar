@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import anthropic
@@ -56,10 +56,17 @@ class CallSpec:
     schema: dict[str, Any]
     effort: str = "low"
     max_tokens: int = 16000
+    images: list[str] = field(default_factory=list)  # image URLs shown to Claude before the text
 
 
 def _system_blocks(system: str) -> list[dict[str, Any]]:
     return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+
+
+def _user_content(spec: CallSpec) -> str | list[dict[str, Any]]:
+    if not spec.images:
+        return spec.user
+    return [*({"type": "image", "source": {"type": "url", "url": url}} for url in spec.images), {"type": "text", "text": spec.user}]
 
 
 def _output_config(spec: CallSpec) -> dict[str, Any]:
@@ -103,7 +110,7 @@ class ClaudeClient:
             "model": self.model,
             "max_tokens": spec.max_tokens,
             "system": _system_blocks(spec.system),
-            "messages": [{"role": "user", "content": spec.user}],
+            "messages": [{"role": "user", "content": _user_content(spec)}],
             "output_config": _output_config(spec),
         }
         try:
@@ -130,7 +137,7 @@ class ClaudeClient:
                     model=self.model,
                     max_tokens=spec.max_tokens,
                     system=_system_blocks(spec.system),
-                    messages=[{"role": "user", "content": spec.user}],
+                    messages=[{"role": "user", "content": _user_content(spec)}],
                     output_config=_output_config(spec),
                 ),
             )

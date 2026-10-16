@@ -52,6 +52,8 @@ community:
   digest_effort: high             # tóm tắt thảo luận
   summary_effort: high            # tóm tắt từng chủ đề Shopify Community
   translate_effort: high          # dịch từng tin Discord sang tiếng Việt
+  describe_images: true           # Claude xem ảnh đính kèm trong tin Discord và mô tả bằng tiếng Việt
+  max_images_per_run: 40          # tối đa số tin có ảnh được xem mỗi lượt
   max_chars: 80000                # giới hạn độ dài tin gửi Claude cho mỗi bản tóm tắt
 
 video:

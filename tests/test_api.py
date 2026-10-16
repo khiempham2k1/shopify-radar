@@ -170,6 +170,8 @@ def test_community_page(client, db_url, fake_anthropic):
     assert {c["name"]: c["count"] for c in data["channels"]}["Discord #general"] == 5
     assert data["digests"][0]["id"] == data["digest"]["id"]
     assert data["pending"] == 0 and not any(m["pending"] for c in data["channels"] for m in c["messages"])
+    first = data["channels"][0]["messages"][0]
+    assert {"attachments", "embeds", "image_note", "reply_author", "reply_text"} <= set(first)
 
     # A message after the digest: listed under the latest digest as "pending", not in the digest itself.
     from datetime import timedelta
