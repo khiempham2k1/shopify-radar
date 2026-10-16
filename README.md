@@ -102,6 +102,8 @@ radar run                   # thu thập, phân loại, nghe video, chấm đi�
 
 Nguồn nào lỗi (thiếu cookie Reddit/X, thiếu key) chỉ báo trên trang Sức khỏe nguồn, các nguồn khác vẫn chạy.
 
+**Đầu trang Tổng quan** là phần Claude viết (mục `overview` trong `sources.yaml`): tóm tắt nổi bật của `brief_days` (3) ngày qua, **Bài nên đọc** (chọn trong các bài đã lọc, chính thức và chủ đề ưu tiên trước) và **Thảo luận nên đọc** (Discord, Shopify Community), mỗi mục một câu lý do. Viết lại tối đa mỗi `brief_every_hours` (6) giờ, chỉ khi có tin mới; `radar brief` viết ngay.
+
 **Cần xử lý** (Tổng quan) chỉ gồm thay đổi đã phát hành ở các nguồn `release_notes: true` (dev changelog, Shopify Changelog, Editions), ảnh hưởng tới theme, mức cao hoặc mức trung bình có hạn chót, chưa xong. Bài viết và thảo luận bên ngoài không vào danh sách này.
 
 Không thấy một bài trên dashboard? `radar find "chữ trong tiêu đề hoặc URL"` cho biết bài đã được thu thập chưa, bị gộp vào bài nào, hay AI xếp là không liên quan theme (trang Thay đổi nền tảng có tùy chọn "Hiện cả thay đổi AI cho là không liên quan theme").

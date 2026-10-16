@@ -44,6 +44,14 @@ ai:
     claude-sonnet-5-5: {input: 2.0, output: 10.0, cache_read: 0.2, cache_write: 2.5}
     claude-haiku-5-5: {input: 0.1, output: 0.5, cache_read: 0.01, cache_write: 0.125}
 
+overview:
+  # Phần đầu trang Tổng quan: tóm tắt nổi bật, bài nên đọc, thảo luận nên đọc (Claude viết)
+  brief_days: 3                   # xét bài và thảo luận trong chừng này ngày
+  brief_every_hours: 6            # viết lại tối đa mỗi chừng này giờ, chỉ khi có tin mới
+  brief_effort: high
+  must_read: 6                    # số bài nên đọc tối đa
+  discussions: 5                  # số thảo luận nên đọc tối đa
+
 community:
   # Trang "Thảo luận cộng đồng" (nguồn kind: community — Discord, Shopify Community)
   # Mỗi bản tóm tắt chỉ gồm tin MỚI so với bản trước (không lặp lại), tối đa digest_hours giờ gần nhất.

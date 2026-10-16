@@ -91,7 +91,12 @@ function Affects({ item }: { item: Item }) {
   );
 }
 
-export function PlatformRow({ item, compact = false }: { item: Item; compact?: boolean }) {
+/** Why an item is worth reading (overview brief). */
+function Note({ text }: { text?: string }) {
+  return text ? <div className="ai note">💡 {text}</div> : null;
+}
+
+export function PlatformRow({ item, compact = false, note }: { item: Item; compact?: boolean; note?: string }) {
   const date = item.published_at || item.first_seen;
   return (
     <div className="row">
@@ -108,6 +113,7 @@ export function PlatformRow({ item, compact = false }: { item: Item; compact?: b
           <Affects item={item} />
           {typeof item.extra?.section === "string" && <span className="tag">{item.extra.section}</span>}
         </div>
+        <Note text={note} />
         {!compact && item.summary && <div className="ai">{item.summary}</div>}
         {!compact && item.area?.group === "none" && item.reason && <div className="why">AI không xếp vào theme vì: {item.reason}</div>}
         {!compact && <Reposts item={item} />}
@@ -180,9 +186,12 @@ export function FeedRow({
   compact = false,
   onDismiss,
   showHot = false,
+  note,
 }: {
   item: Item;
   compact?: boolean;
+  /** Why it is worth reading (overview brief). */
+  note?: string;
   onDismiss?: (item: Item) => void;
   /** Show the hot score (Feed sorted by hotness) instead of the overall score. */
   showHot?: boolean;
@@ -218,6 +227,7 @@ export function FeedRow({
             </span>
           ))}
         </div>
+        <Note text={note} />
         {!compact && <Body item={item} />}
         {!compact && <Reposts item={item} />}
       </div>

@@ -227,3 +227,21 @@ def test_todo_lists_only_released_platform_changes(client):
     todo = client.get("/api/overview").json()["todo"]
     assert todo and {i["source"]["id"] for i in todo} <= {"shopify-dev-changelog", "shopify-changelog", "shopify-editions"}
     assert all(i["impact"] == "high" or (i["impact"] == "med" and i["deadline"]) for i in todo)
+
+
+def test_overview_shows_the_brief(client, db_url, fake_anthropic):
+    from radar.ai import brief
+    from radar.config_loader import load_config
+    from tests.test_brief import seed
+
+    session = session_factory(db_url)()
+    config = load_config(session)
+    claude = seed(session, config, fake_anthropic)
+    brief.refresh(session, config, claude, force=True)
+    session.commit()
+    session.close()
+
+    data = client.get("/api/overview").json()["brief"]
+    assert data["headline"] and data["highlights"][0]["items"]
+    assert data["must_read"] and all(p["why"] and p["source"]["kind"] != "community" for p in data["must_read"])
+    assert data["discussions"] and all(d["why"] and d["place"] for d in data["discussions"])

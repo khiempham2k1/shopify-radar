@@ -78,6 +78,16 @@ export interface Overview {
   topics: { tag: string; count: number; previous: number }[];
   todo: Item[];
   priority: { topics: string[]; items: Item[] };
+  /** Written by Claude every few hours: what stood out, what to read. Null until the first one. */
+  brief: {
+    created_at: string | null;
+    window_days: number | null;
+    headline: string;
+    summary: string;
+    highlights: { text: string; items: { id: number; title: string; url: string; source: string; official: boolean }[] }[];
+    must_read: (Item & { why: string })[];
+    discussions: (CommunityRef & { why: string })[];
+  } | null;
   last_run: string | null;
   schedule: string;
 }
@@ -207,6 +217,8 @@ export interface CommunityRef {
   reactions: number;
   comments: number;
   is_reply: boolean;
+  /** A Discord message (otherwise a Shopify Community thread). */
+  is_message?: boolean;
   /** Came in after the digest shown: summed up in the next one. */
   pending?: boolean;
   reply_author?: string;

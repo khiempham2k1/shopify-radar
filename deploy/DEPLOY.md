@@ -122,6 +122,7 @@ Mở `http://<ip-vps>:3000` (hoặc `https://radar.congty.com`). Admin mở th�
 | Phân loại lại theo cấu hình mới | `docker compose exec worker radar classify --reset` |
 | Tóm tắt cộng đồng ngay | `docker compose exec worker radar digest` |
 | Xóa các bản tóm tắt cộng đồng cũ, tóm tắt lại từ đầu | `docker compose exec worker radar digest --reset` |
+| Viết lại tóm tắt đầu trang Tổng quan ngay | `docker compose exec worker radar brief` |
 | Tra một bài | `docker compose exec worker radar find "carts/update"` |
 | Khởi động lại | `docker compose restart` |
 | Cập nhật code mới | `bash deploy/update.sh` |

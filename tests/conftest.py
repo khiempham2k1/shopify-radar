@@ -95,6 +95,17 @@ def default_responder(kwargs: dict[str, Any]):
                 "open_questions": [{"text": "Có cách nào tăng tốc editor?", "item_ids": ids[:1]}],
             }
         )
+    if "headline" in props:
+        ids = [int(i) for i in re.findall(r"^\[(\d+)\]", user, re.M)]
+        return make_message(
+            {
+                "headline": "Shopify đổi cách giỏ hàng phát webhook.",
+                "summary": "Tuần này có thay đổi giỏ hàng và cộng đồng hỏi nhiều về theme editor.",
+                "highlights": [{"text": "Giỏ hàng không đổi thì không còn phát carts/update.", "item_ids": ids[:2] + [99999]}],
+                "must_read": [{"item_id": i, "why": f"Đọc bài {i}"} for i in [*ids, 99999]],
+                "discussions": [{"item_id": i, "why": f"Thảo luận {i}"} for i in [*ids, 99999]],
+            }
+        )
     if set(props) == {"note"}:
         return make_message({"note": "Ảnh chụp thông báo lỗi trong theme editor."})
     if "translations" in props:

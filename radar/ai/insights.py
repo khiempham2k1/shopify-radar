@@ -78,6 +78,30 @@ def _tag_counts(items: list[Item]) -> Counter[str]:
     return counts
 
 
+def item_line(item: Item, names: dict[str, str]) -> str:
+    """One item as Claude reads it in reports: id, title, source, score and what classification found."""
+    result = max((r for r in item.results if r.status == "active"), key=lambda r: r.score, default=None)
+    source = names.get(item.source_id, item.source_id) + (" · CHÍNH THỨC" if item.official else "")
+    parts = [f"[{item.id}] {item.title}", f"nguồn: {source}", f"điểm: {item.score:.1f}"]
+    if item.priority:
+        parts.append(f"ưu tiên: {item.priority}")
+    if result is not None:
+        parts.append(f"tag: {result.tag.tag}")
+        if result.area:
+            parts.append(f"mảng: {result.area}")
+        if result.affects:
+            parts.append(f"ảnh hưởng tới: {result.affects}")
+        if result.impact:
+            parts.append(f"mức ảnh hưởng: {result.impact}")
+        if result.deadline:
+            parts.append(f"hạn: {result.deadline.isoformat()}")
+        parts.append(f"cảm xúc: {result.sentiment}")
+    text = " | ".join(parts)
+    if item.summary:
+        text += f"\n    {item.summary}"
+    return text
+
+
 def build_report(session: Session, config: RadarConfig, claude: ClaudeClient, today: date | None = None) -> Report:
     today = today or datetime.now(ZoneInfo(get_settings().timezone)).date()
     period_start, period_end = last_full_week(today)
@@ -94,28 +118,6 @@ def build_report(session: Session, config: RadarConfig, claude: ClaudeClient, to
     now_counts, prev_counts = _tag_counts(items), _tag_counts(previous)
     tag_lines = "\n".join(f"- {tag}: {n} / {prev_counts.get(tag, 0)}" for tag, n in now_counts.most_common()) or "(không có)"
 
-    def line(item: Item) -> str:
-        result = max((r for r in item.results if r.status == "active"), key=lambda r: r.score, default=None)
-        source = names.get(item.source_id, item.source_id) + (" · CHÍNH THỨC" if item.official else "")
-        parts = [f"[{item.id}] {item.title}", f"nguồn: {source}", f"điểm: {item.score:.1f}"]
-        if item.priority:
-            parts.append(f"ưu tiên: {item.priority}")
-        if result is not None:
-            parts.append(f"tag: {result.tag.tag}")
-            if result.area:
-                parts.append(f"mảng: {result.area}")
-            if result.affects:
-                parts.append(f"ảnh hưởng tới: {result.affects}")
-            if result.impact:
-                parts.append(f"mức ảnh hưởng: {result.impact}")
-            if result.deadline:
-                parts.append(f"hạn: {result.deadline.isoformat()}")
-            parts.append(f"cảm xúc: {result.sentiment}")
-        text = " | ".join(parts)
-        if item.summary:
-            text += f"\n    {item.summary}"
-        return text
-
     platform = [i for i in items if kinds.get(i.source_id) == "platform"][: limit // 3]
     feed = [i for i in items if kinds.get(i.source_id) != "platform"][: limit - len(platform)]
     prompt = load_prompt(
@@ -125,8 +127,8 @@ def build_report(session: Session, config: RadarConfig, claude: ClaudeClient, to
         period_end=period_end.strftime("%d/%m/%Y"),
         total=len(items),
         tag_counts=tag_lines,
-        platform="\n".join(line(i) for i in platform) or "(không có)",
-        feed="\n".join(line(i) for i in feed) or "(không có)",
+        platform="\n".join(item_line(i, names) for i in platform) or "(không có)",
+        feed="\n".join(item_line(i, names) for i in feed) or "(không có)",
     )
     data = claude.call_json(
         CallSpec("report", prompt.system, prompt.user, REPORT_SCHEMA, effort=config.ai.get("report_effort", "high"), max_tokens=16000)

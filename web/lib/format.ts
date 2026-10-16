@@ -17,6 +17,7 @@ export const TASK: Record<string, string> = {
   report: "Báo cáo tuần",
   tags: "Tạo tag",
   community: "Thảo luận cộng đồng",
+  brief: "Tóm tắt tổng quan",
 };
 
 const numberFmt = new Intl.NumberFormat("vi-VN");
@@ -155,4 +156,15 @@ export function videoAt(url: string, seconds: number): string {
   } catch {
     return `${url}${url.includes("?") ? "&" : "?"}t=${Math.max(0, Math.floor(seconds))}s`;
   }
+}
+
+const DETAIL_LINE = /^\[(Ảnh|Tệp|Link|Nội dung ảnh): .*\]$/;
+
+/** A Discord message as the person wrote it, without the [Ảnh: …] / [Link: …] lines describing attachments. */
+export function ownText(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !DETAIL_LINE.test(line.trim()))
+    .join("\n")
+    .trim();
 }

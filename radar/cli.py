@@ -10,6 +10,7 @@
     radar report             write last week's report now
     radar digest [--reset]   sum up new community talk now (Discord, Shopify Community);
                              --reset: delete every community digest first, then write one fresh
+    radar brief              write the overview brief now (highlights, posts and discussions worth reading)
     radar find TEXT          where an item is: stored? merged into another? what Claude made of it
     radar doctor [--network] check tools, logins and keys
     radar scheduler          run forever on the cron in sources.yaml
@@ -116,6 +117,16 @@ def cmd_digest(args: argparse.Namespace) -> None:
         _print(community.refresh(session, config, make_claude(session, config), force=True))
 
 
+def cmd_brief(_: argparse.Namespace) -> None:
+    from radar.ai import brief
+    from radar.config_loader import load_config
+    from radar.pipeline import make_claude
+
+    with session_scope() as session:
+        config = load_config(session)
+        _print({"brief": brief.refresh(session, config, make_claude(session, config), force=True)})
+
+
 def cmd_find(args: argparse.Namespace) -> None:
     """Look an item up by words of its title or a piece of its URL, and explain what happened to it."""
     from sqlalchemy import String, cast, or_, select
@@ -201,6 +212,7 @@ def main(argv: list[str] | None = None) -> None:
     digest_p = sub.add_parser("digest")
     digest_p.add_argument("--reset", action="store_true", help="xóa mọi bản tóm tắt cộng đồng cũ rồi tóm tắt lại từ đầu (tin nhắn giữ nguyên)")
     digest_p.set_defaults(func=cmd_digest)
+    sub.add_parser("brief").set_defaults(func=cmd_brief)
     find = sub.add_parser("find")
     find.add_argument("text", help="chữ trong tiêu đề hoặc một phần URL")
     find.set_defaults(func=cmd_find)

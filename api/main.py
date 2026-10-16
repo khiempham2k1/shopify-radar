@@ -409,6 +409,51 @@ def priority_items(session: Session, days: int = 30, limit: int = 12) -> list[It
     return list(session.scalars(stmt).unique())
 
 
+def overview_brief(session: Session, config: Any) -> tuple[dict[str, Any] | None, list[Item]]:
+    """The latest overview brief with its items loaded. Posts are serialized later (they need
+    the analyzed ids); discussions are community refs. Returns (brief, posts to serialize)."""
+    from radar.ai.brief import latest_brief
+    from radar.ai.community import community_sources
+
+    report = latest_brief(session)
+    if report is None:
+        return None, []
+    content = report.content or {}
+    ids = {p["item_id"] for key in ("must_read", "discussions") for p in content.get(key, [])}
+    ids |= {i for h in content.get("highlights", []) for i in h.get("item_ids", [])}
+    items = {i.id: i for i in session.scalars(item_query().where(Item.id.in_(ids))).unique()} if ids else {}
+    places = community_sources(session)
+    posts = [items[p["item_id"]] for p in content.get("must_read", []) if p["item_id"] in items]
+
+    def link(item: Item) -> dict[str, Any]:
+        return {"id": item.id, "title": item.title, "url": item.url, "source": item.source.name, "official": item.official}
+
+    return {
+        "created_at": iso(report.created_at),
+        "window_days": content.get("window_days"),
+        "headline": content.get("headline", ""),
+        "summary": content.get("summary", ""),
+        "highlights": [
+            {"text": h.get("text", ""), "items": [link(items[i]) for i in h.get("item_ids", []) if i in items]} for h in content.get("highlights", [])
+        ],
+        "must_read": [{"item_id": p["item_id"], "why": p.get("why", "")} for p in content.get("must_read", []) if p["item_id"] in items],
+        "_posts": {i.id: i for i in posts},
+        "discussions": [
+            {**community_ref(items[p["item_id"]], places), "why": p.get("why", "")}
+            for p in content.get("discussions", [])
+            if p["item_id"] in items
+        ],
+    }, posts
+
+
+def finish_brief(brief: dict[str, Any] | None, done: set[int]) -> dict[str, Any] | None:
+    if brief is None:
+        return None
+    posts = brief.pop("_posts")
+    brief["must_read"] = [{**serialize_item(posts[p["item_id"]], done), "why": p["why"]} for p in brief["must_read"]]
+    return brief
+
+
 @app.get("/api/overview")
 def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
     config = load_config(session)
@@ -470,7 +515,8 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         if (r := best_result(i)) is not None and r.deadline is not None and (r.deadline - today).days <= 90
     ]
     last_run = session.scalar(select(CrawlRun).where(CrawlRun.finished_at.is_not(None)).order_by(CrawlRun.finished_at.desc()).limit(1))
-    done = analyzed_ids(session, [i.id for i in todo + priority])
+    brief_out, read_items = overview_brief(session, config)
+    done = analyzed_ids(session, [i.id for i in todo + priority + read_items])
     return {
         "kpis": {
             "new_7d": new_7d,
@@ -486,6 +532,7 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         "topics": topics,
         "todo": [serialize_item(i, done) for i in todo],
         "priority": {"topics": [t.name for t in config.priorities], "items": [serialize_item(i, done) for i in priority]},
+        "brief": finish_brief(brief_out, done),
         "last_run": iso(last_run.finished_at) if last_run else None,
         "schedule": config.schedule.get("collect", ""),
     }
@@ -509,6 +556,7 @@ def community_ref(item: Item, places: dict[str, str]) -> dict[str, Any]:
         "reactions": (item.metrics or {}).get("likes", 0),
         "comments": (item.metrics or {}).get("comments", 0),
         "is_reply": bool((item.extra or {}).get("reply_to")),
+        "is_message": item.media_type == "message",
         "reply_author": (item.extra or {}).get("reply_author", ""),
         "reply_text": (item.extra or {}).get("reply_text", ""),
         "attachments": [

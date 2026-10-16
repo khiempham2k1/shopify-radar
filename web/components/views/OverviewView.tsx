@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useApi } from "@/lib/api";
-import { describeCron, dueClass, fmtDate, fmtDateTime, fmtNumber, pctChange, signed } from "@/lib/format";
+import { describeCron, dueClass, fmtDate, fmtDateTime, fmtNumber, ownText, pctChange, signed, timeAgo } from "@/lib/format";
 import type { Overview } from "@/lib/types";
 import { BarChart, Legend, type BarSeries } from "../BarChart";
 import { FeedRow, PlatformRow } from "../ItemRows";
@@ -89,6 +89,107 @@ function Topics({ topics }: { topics: Overview["topics"] }) {
   );
 }
 
+type Brief = NonNullable<Overview["brief"]>;
+
+function Highlights({ brief }: { brief: Brief }) {
+  return (
+    <div className="panel brief">
+      <div className="panel-head">
+        <h2>Tóm tắt nổi bật</h2>
+        {brief.created_at && (
+          <span className="stamp mono" title={fmtDateTime(brief.created_at)}>
+            AI viết {timeAgo(brief.created_at)}
+            {brief.window_days ? ` · ${brief.window_days} ngày qua` : ""}
+          </span>
+        )}
+      </div>
+      {brief.headline && <p className="brief-headline">{brief.headline}</p>}
+      {brief.summary && <p className="brief-summary">{brief.summary}</p>}
+      {brief.highlights.length > 0 && (
+        <ul className="brief-points">
+          {brief.highlights.map((h, i) => (
+            <li key={i}>
+              {h.text}
+              {h.items.map((it) => (
+                <a key={it.id} className="c-link" href={it.url} target="_blank" rel="noopener noreferrer" title={it.title}>
+                  ↗ {it.official ? "✓ " : ""}
+                  {it.source}
+                </a>
+              ))}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function MustRead({ brief }: { brief: Brief }) {
+  return (
+    <div className="panel">
+      <h2>Bài nên đọc</h2>
+      <p className="sub">AI chọn từ những bài đã lọc, kèm lý do nên đọc</p>
+      {brief.must_read.length === 0 ? (
+        <Empty>Chưa có bài nào đáng chú ý.</Empty>
+      ) : (
+        <div className="list">
+          {brief.must_read.map((item) =>
+            item.source.kind === "platform" ? (
+              <PlatformRow key={item.id} item={item} compact note={item.why} />
+            ) : (
+              <FeedRow key={item.id} item={item} compact note={item.why} />
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Discussions({ brief }: { brief: Brief }) {
+  return (
+    <div className="panel">
+      <h2>Thảo luận nên đọc</h2>
+      <p className="sub">
+        Từ Discord và Shopify Community · <a href="/community">xem tất cả</a>
+      </p>
+      {brief.discussions.length === 0 ? (
+        <Empty>Chưa có thảo luận nào đáng chú ý.</Empty>
+      ) : (
+        <div className="list">
+          {brief.discussions.map((d) => {
+            // A Discord message reads by its (translated) words; a thread by its title, its summary below.
+            const said = d.summary || ownText(d.text) || d.title;
+            const title = d.is_message ? (said.length > 180 ? `${said.slice(0, 180)}…` : said) : d.title;
+            return (
+              <div className="row" key={d.id}>
+                <div className="stripe sev-low" />
+                <div style={{ minWidth: 0 }}>
+                  <div className="t">
+                    <a href={d.url} target="_blank" rel="noopener noreferrer">
+                      {title}
+                    </a>
+                  </div>
+                  <div className="m">
+                    <span className="src">{d.place}</span>
+                    {d.author && <span>{d.author}</span>}
+                    {d.when && <span title={fmtDateTime(d.when)}>{timeAgo(d.when)}</span>}
+                    {d.comments > 0 && <span>{fmtNumber(d.comments)} trả lời</span>}
+                    {d.reactions > 0 && <span>{fmtNumber(d.reactions)} reaction</span>}
+                  </div>
+                  {!d.is_message && d.summary && <div className="ai">{d.summary}</div>}
+                  {d.why && <div className="ai note">💡 {d.why}</div>}
+                </div>
+                <div />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Priority({ data }: { data: Overview["priority"] }) {
   if (data.topics.length === 0) return null;
   return (
@@ -112,6 +213,24 @@ function Priority({ data }: { data: Overview["priority"] }) {
             ) : (
               <FeedRow key={item.id} item={item} compact />
             ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TodoPanel({ todo }: { todo: Overview["todo"] }) {
+  return (
+    <div className="panel">
+      <h2>Cần xử lý</h2>
+      <p className="sub">Thay đổi đã phát hành ở Shopify dev changelog, Shopify Changelog và Editions, ảnh hưởng tới theme và chưa xong: mức cao, hoặc mức trung bình có hạn chót. Xếp theo hạn chót.</p>
+      {todo.length === 0 ? (
+        <Empty>Không còn việc nào cần xử lý.</Empty>
+      ) : (
+        <div className="list">
+          {todo.map((item) =>
+            item.source.kind === "platform" ? <PlatformRow key={item.id} item={item} compact /> : <FeedRow key={item.id} item={item} compact />,
           )}
         </div>
       )}
@@ -158,6 +277,21 @@ export function OverviewView() {
       {data && (
         <>
           <Kpis k={data.kpis} />
+          {data.brief ? (
+            <>
+              <Highlights brief={data.brief} />
+              <div className="grid-2">
+                <MustRead brief={data.brief} />
+                <Discussions brief={data.brief} />
+              </div>
+            </>
+          ) : (
+            <div className="panel">
+              <h2>Tóm tắt nổi bật</h2>
+              <Empty>Chưa có bản tóm tắt. AI viết bản đầu tiên ở lượt chạy tới (hoặc chạy lệnh radar brief).</Empty>
+            </div>
+          )}
+          <TodoPanel todo={data.todo} />
           {data.priority && <Priority data={data.priority} />}
           <div className="grid-2">
             <div className="panel">
@@ -177,23 +311,6 @@ export function OverviewView() {
               <p className="sub">AI gom theo tag, so với tuần trước</p>
               <Topics topics={data.topics} />
             </div>
-          </div>
-          <div className="panel">
-            <h2>Cần xử lý</h2>
-            <p className="sub">Thay đổi đã phát hành ở Shopify dev changelog, Shopify Changelog và Editions, ảnh hưởng tới theme và chưa xong: mức cao, hoặc mức trung bình có hạn chót. Xếp theo hạn chót.</p>
-            {data.todo.length === 0 ? (
-              <Empty>Không còn việc nào cần xử lý.</Empty>
-            ) : (
-              <div className="list">
-                {data.todo.map((item) =>
-                  item.source.kind === "platform" ? (
-                    <PlatformRow key={item.id} item={item} compact />
-                  ) : (
-                    <FeedRow key={item.id} item={item} compact />
-                  ),
-                )}
-              </div>
-            )}
           </div>
         </>
       )}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useApi } from "@/lib/api";
-import { fmtDateTime, fmtNumber, timeAgo } from "@/lib/format";
+import { fmtDateTime, fmtNumber, ownText, timeAgo } from "@/lib/format";
 import type { CommunityPage, CommunityRef, CommunityTopic } from "@/lib/types";
 import { Empty, ErrorBox, Loading } from "../States";
 
@@ -15,16 +15,7 @@ const TOPIC_KIND: Record<CommunityTopic["kind"], string> = {
 };
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp)$/i;
-const DETAIL_LINE = /^\[(Ảnh|Tệp|Link|Nội dung ảnh): .*\]$/;
 
-/** What the person wrote, without the [Ảnh: …] / [Link: …] lines (shown as details below instead). */
-function ownText(text: string): string {
-  return text
-    .split("\n")
-    .filter((line) => !DETAIL_LINE.test(line.trim()))
-    .join("\n")
-    .trim();
-}
 
 /** Attachments, link previews and the message replied to, under a Discord message. */
 function MessageDetails({ m }: { m: CommunityRef }) {

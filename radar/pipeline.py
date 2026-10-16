@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from radar.ai import community
+from radar.ai import brief, community
 from radar.ai.classifier import ClassifyStats, classify
 from radar.ai.client import ClaudeClient
 from radar.ai.insights import build_report
@@ -33,6 +33,7 @@ class RunSummary:
     pruned: int = 0
     stale_removed: int = 0
     community: dict[str, Any] = field(default_factory=dict)
+    brief: int | None = None
     errors: list[str] = field(default_factory=list)
 
 
@@ -78,6 +79,17 @@ def run_once(session: Session, only: list[str] | None = None, claude_client: Any
         session.rollback()
 
     summary.scored = rescore(session, config)
+    session.commit()
+
+    try:
+        # Top of the overview page: highlights, posts and discussions worth reading.
+        summary.brief = brief.refresh(session, config, claude)
+        session.commit()
+    except Exception as exc:  # noqa: BLE001 - the brief must not stop the run
+        log.exception("Overview brief failed")
+        summary.errors.append(f"Tóm tắt tổng quan: {exc}")
+        session.rollback()
+
     summary.pruned = prune_old(session, int(config.schedule.get("retention_days", 0)))
     session.commit()
     return summary
