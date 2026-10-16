@@ -107,10 +107,8 @@ def test_usage(client):
     assert data["groq"]["videos"] == 1
 
 
-def test_priority_items_on_overview_and_filter(client):
-    data = client.get("/api/overview").json()
-    assert data["priority"]["topics"] == ["Shopify Canvas"]
-    assert [i["priority"] for i in data["priority"]["items"]] == [["Shopify Canvas"]]
+def test_priority_filter(client):
+    assert "priority" not in client.get("/api/overview").json()  # the overview no longer has its own section
     only = client.get("/api/items", params={"view": "feed", "priority": "true"}).json()["items"]
     assert len(only) == 1 and "Shopify Canvas" in only[0]["title"]
     # Low AI score (0.45 < min_score) but still listed, and boosted above plain items with similar relevance.

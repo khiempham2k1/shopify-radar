@@ -179,41 +179,14 @@ function Discussions({ brief }: { brief: Brief }) {
                   </div>
                   {!d.is_message && d.summary && <div className="ai">{d.summary}</div>}
                   {d.why && <div className="ai note">💡 {d.why}</div>}
+                  <a className="open-link" href={d.url} target="_blank" rel="noopener noreferrer">
+                    ↗ {d.is_message ? "Mở tin trên Discord" : "Mở thảo luận trên Shopify Community"}
+                  </a>
                 </div>
                 <div />
               </div>
             );
           })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Priority({ data }: { data: Overview["priority"] }) {
-  if (data.topics.length === 0) return null;
-  return (
-    <div className="panel">
-      <h2>Chủ đề ưu tiên</h2>
-      <p className="sub">Cập nhật mới nhất về các chủ đề team đang theo sát, 30 ngày qua</p>
-      <div className="prio-topics">
-        {data.topics.map((t) => (
-          <span key={t} className="tag prio">
-            ★ {t}
-          </span>
-        ))}
-      </div>
-      {data.items.length === 0 ? (
-        <Empty>Chưa có cập nhật nào về các chủ đề này trong 30 ngày qua.</Empty>
-      ) : (
-        <div className="list">
-          {data.items.map((item) =>
-            item.source.kind === "platform" ? (
-              <PlatformRow key={item.id} item={item} compact />
-            ) : (
-              <FeedRow key={item.id} item={item} compact />
-            ),
-          )}
         </div>
       )}
     </div>
@@ -292,7 +265,6 @@ export function OverviewView() {
             </div>
           )}
           <TodoPanel todo={data.todo} />
-          {data.priority && <Priority data={data.priority} />}
           <div className="grid-2">
             <div className="panel">
               <h2>Item mới theo ngày</h2>

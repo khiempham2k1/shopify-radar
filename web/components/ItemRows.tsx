@@ -91,9 +91,25 @@ function Affects({ item }: { item: Item }) {
   );
 }
 
-/** Why an item is worth reading (overview brief). */
-function Note({ text }: { text?: string }) {
-  return text ? <div className="ai note">💡 {text}</div> : null;
+function host(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+/** Why an item is worth reading (overview brief), with a plain link to the post. */
+function Note({ text, url }: { text?: string; url: string }) {
+  if (!text) return null;
+  return (
+    <>
+      <div className="ai note">💡 {text}</div>
+      <a className="open-link" href={url} target="_blank" rel="noopener noreferrer">
+        ↗ Đọc bài{host(url) ? ` · ${host(url)}` : ""}
+      </a>
+    </>
+  );
 }
 
 export function PlatformRow({ item, compact = false, note }: { item: Item; compact?: boolean; note?: string }) {
@@ -113,7 +129,7 @@ export function PlatformRow({ item, compact = false, note }: { item: Item; compa
           <Affects item={item} />
           {typeof item.extra?.section === "string" && <span className="tag">{item.extra.section}</span>}
         </div>
-        <Note text={note} />
+        <Note text={note} url={item.url} />
         {!compact && item.summary && <div className="ai">{item.summary}</div>}
         {!compact && item.area?.group === "none" && item.reason && <div className="why">AI không xếp vào theme vì: {item.reason}</div>}
         {!compact && <Reposts item={item} />}
@@ -227,7 +243,7 @@ export function FeedRow({
             </span>
           ))}
         </div>
-        <Note text={note} />
+        <Note text={note} url={item.url} />
         {!compact && <Body item={item} />}
         {!compact && <Reposts item={item} />}
       </div>

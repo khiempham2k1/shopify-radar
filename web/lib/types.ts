@@ -77,7 +77,6 @@ export interface Overview {
   daily: { date: string; platform: number; social: number; web: number }[];
   topics: { tag: string; count: number; previous: number }[];
   todo: Item[];
-  priority: { topics: string[]; items: Item[] };
   /** Written by Claude every few hours: what stood out, what to read. Null until the first one. */
   brief: {
     created_at: string | null;

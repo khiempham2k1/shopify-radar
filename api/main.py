@@ -393,22 +393,6 @@ def todo_items(session: Session, min_score: float, release_ids: list[str], limit
     return changes[:limit]
 
 
-def priority_items(session: Session, days: int = 30, limit: int = 12) -> list[Item]:
-    """Newest items on a priority topic (config/priorities.txt), not dismissed."""
-    stmt = (
-        item_query()
-        .outerjoin(ItemStatus, ItemStatus.item_id == Item.id)
-        .where(
-            Item.priority.is_not(None),
-            Item.last_seen >= utcnow() - timedelta(days=days),
-            or_(ItemStatus.status.is_(None), ItemStatus.status != "dismissed"),
-        )
-        .order_by(Item.official.desc(), func.coalesce(Item.published_at, Item.first_seen).desc())
-        .limit(limit)
-    )
-    return list(session.scalars(stmt).unique())
-
-
 def overview_brief(session: Session, config: Any) -> tuple[dict[str, Any] | None, list[Item]]:
     """The latest overview brief with its items loaded. Posts are serialized later (they need
     the analyzed ids); discussions are community refs. Returns (brief, posts to serialize)."""
@@ -508,7 +492,6 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         return round(counts.get("neg", 0) / total, 3) if total else None
 
     todo = todo_items(session, min_score, release_sources(config))
-    priority = priority_items(session)
     deadlines = [
         r.deadline
         for i in todo
@@ -516,7 +499,7 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
     ]
     last_run = session.scalar(select(CrawlRun).where(CrawlRun.finished_at.is_not(None)).order_by(CrawlRun.finished_at.desc()).limit(1))
     brief_out, read_items = overview_brief(session, config)
-    done = analyzed_ids(session, [i.id for i in todo + priority + read_items])
+    done = analyzed_ids(session, [i.id for i in todo + read_items])
     return {
         "kpis": {
             "new_7d": new_7d,
@@ -531,7 +514,6 @@ def overview(session: SessionDep, _: UserDep) -> dict[str, Any]:
         "daily": series,
         "topics": topics,
         "todo": [serialize_item(i, done) for i in todo],
-        "priority": {"topics": [t.name for t in config.priorities], "items": [serialize_item(i, done) for i in priority]},
         "brief": finish_brief(brief_out, done),
         "last_run": iso(last_run.finished_at) if last_run else None,
         "schedule": config.schedule.get("collect", ""),

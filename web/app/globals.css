@@ -369,3 +369,5 @@ tfoot td { font-weight: 600; }
 .brief .brief-summary { margin: 0 0 8px; color: var(--fg); line-height: 1.55; }
 .brief-points { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; }
 .ai.note { color: var(--fg); }
+.open-link { display: inline-block; margin-top: 4px; font-size: 12.5px; color: var(--accent); text-decoration: none; overflow-wrap: anywhere; }
+.open-link:hover { text-decoration: underline; }
