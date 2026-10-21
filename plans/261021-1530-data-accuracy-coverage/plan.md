@@ -1,6 +1,6 @@
 ---
 title: Độ chính xác và độ đầy đủ của dữ liệu tổng hợp
-status: in-progress
+status: done
 created: 2026-10-21
 branch: claude/project-thread-7ndd6h
 ---
@@ -27,9 +27,9 @@ Nhóm C (nút phản hồi, `radar eval`, trang chất lượng dữ liệu), l�
 
 | # | Phase | Status |
 |---|---|---|
-| 1 | [Tóm tắt cộng đồng không mất tin, số đếm do code tính](phase-01-community-digest.md) | todo |
-| 2 | [Báo cáo tuần và tóm tắt Tổng quan đủ dữ liệu](phase-02-weekly-report.md) | todo |
-| 3 | [Phân loại đọc đủ, mọi item có lý do](phase-03-classification.md) | todo |
+| 1 | [Tóm tắt cộng đồng không mất tin, số đếm do code tính](phase-01-community-digest.md) | done |
+| 2 | [Báo cáo tuần và tóm tắt Tổng quan đủ dữ liệu](phase-02-weekly-report.md) | done |
+| 3 | [Phân loại đọc đủ, mọi item có lý do](phase-03-classification.md) | done |
 
 ## Acceptance
 
