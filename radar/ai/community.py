@@ -12,9 +12,13 @@ These items are not classified or rated one by one. Instead:
 - a Vietnamese digest is written at most every `digest_every_hours` and
   stored as a Report with kind "community": overview, topics, open questions,
   each pointing at the messages it comes from. Each digest covers only what
-  no earlier digest did (items stored since the previous one, said within the
-  last `digest_hours`), so nothing is summed up twice; its item ids are kept
-  so the page can show exactly the messages behind it.
+  no earlier digest did (said within the last `digest_hours` and not shown to
+  Claude by an earlier digest), so nothing is summed up twice. When a busy
+  channel does not fit in `max_chars`, the messages left out stay pending and
+  go into the next digest instead of being lost. The ids Claude was shown are
+  kept (`all_item_ids`) so the page can show exactly the messages behind it.
+  Topic sizes (mentions, people) are counted from the messages Claude ties to
+  each topic and their replies, not taken from Claude's own count.
 """
 
 from __future__ import annotations
@@ -53,10 +57,9 @@ DIGEST_SCHEMA = {
                     "kind": {"type": "string", "enum": TOPIC_KINDS},
                     "sources": {"type": "array", "items": {"type": "string"}},
                     "item_ids": {"type": "array", "items": {"type": "integer"}},
-                    "mentions": {"type": "integer"},
-                    "people": {"type": "integer"},
+                    "related_ids": {"type": "array", "items": {"type": "integer"}},
                 },
-                "required": ["title", "summary", "kind", "sources", "item_ids", "mentions", "people"],
+                "required": ["title", "summary", "kind", "sources", "item_ids", "related_ids"],
                 "additionalProperties": False,
             },
         },
@@ -145,6 +148,23 @@ def window_items(session: Session, hours: int, now: datetime | None = None, stor
     return sorted(session.scalars(query), key=when)
 
 
+def pending_talk(session: Session, hours: int, now: datetime | None = None) -> list[Item]:
+    """Community items of the last `hours` that no digest has shown to Claude yet, oldest first.
+    Digests written before ids were kept cover what was stored before them."""
+    now = now or utcnow()
+    since = now - timedelta(hours=hours)
+    covered: set[int] = set()
+    covered_until: datetime | None = None
+    for created, content in session.execute(select(Report.created_at, Report.content).where(Report.kind == KIND, Report.created_at >= since)):
+        ids = (content or {}).get("all_item_ids")
+        if ids is None:
+            covered_until = max(covered_until or created, created)
+        else:
+            covered.update(ids)
+    items = window_items(session, hours, now, stored_after=covered_until)
+    return [i for i in items if i.id not in covered]
+
+
 def latest_digest(session: Session) -> Report | None:
     return session.scalar(select(Report).where(Report.kind == KIND).order_by(Report.created_at.desc(), Report.id.desc()).limit(1))
 
@@ -221,18 +241,20 @@ def place(item: Item, sources: dict[str, Source]) -> str:
     return f"{name} #{channel}" if channel else name
 
 
-def render(items: list[Item], sources: dict[str, Source], max_chars: int, stats: dict[int, dict[str, int]] | None = None) -> tuple[str, int]:
-    """Messages grouped by place, each place given an equal share of the budget
-    (newest kept when a busy channel is cut). Returns (text, how many were included)."""
+def render(items: list[Item], sources: dict[str, Source], max_chars: int, stats: dict[int, dict[str, int]] | None = None) -> tuple[str, list[int]]:
+    """Messages grouped by place, each place given an equal share of the budget (oldest
+    kept when a busy channel is cut, so what is left out is the newest and goes into the
+    next digest). Returns (text, ids of the items included)."""
     tz = ZoneInfo(get_settings().timezone)
     groups: dict[str, list[Item]] = defaultdict(list)
     for item in items:
         groups[place(item, sources)].append(item)
     share = max_chars // max(1, len(groups))
-    blocks, included = [], 0
+    blocks: list[str] = []
+    included: list[int] = []
     for name, group in groups.items():
         lines, used = [], 0
-        for item in reversed(group):  # newest first while filling the share
+        for item in group:  # oldest first while filling the share
             if item.media_type == "message":
                 text = " ".join(message_text(item).split())[:600]
                 reply = " ↪" if (item.extra or {}).get("reply_to") else ""
@@ -245,54 +267,77 @@ def render(items: list[Item], sources: dict[str, Source], max_chars: int, stats:
             if used + len(line) > share and lines:
                 break
             lines.append(line)
+            included.append(item.id)
             used += len(line) + 1
-        included += len(lines)
-        blocks.append(f"## {name} ({len(group)} tin)\n" + "\n".join(reversed(lines)))
+        shown = f"{len(lines)}/{len(group)} tin" if len(lines) < len(group) else f"{len(group)} tin"
+        blocks.append(f"## {name} ({shown})\n" + "\n".join(lines))
     return "\n\n".join(blocks), included
+
+
+def topic_size(ids: set[int], items: list[Item]) -> tuple[int, int]:
+    """(messages, people) of a topic: the given items plus every reply under them, among `items`."""
+    by_msg = {i.external_id: i for i in items if i.external_id}
+    children: dict[int, list[Item]] = defaultdict(list)
+    for item in items:
+        parent = by_msg.get(str((item.extra or {}).get("reply_to") or ""))
+        if parent is not None and parent.id != item.id:
+            children[parent.id].append(item)
+    by_id = {i.id: i for i in items}
+    found: dict[int, Item] = {}
+    todo = [by_id[i] for i in ids if i in by_id]
+    while todo:
+        item = todo.pop()
+        if item.id not in found:
+            found[item.id] = item
+            todo.extend(children.get(item.id, []))
+    people = {(i.author or "").strip().lower() for i in found.values()} - {""}
+    return len(found), len(people)
 
 
 def build_digest(session: Session, config: RadarConfig, claude: ClaudeClient, now: datetime | None = None) -> Report | None:
     settings = config.section("community")
     hours = int(settings.get("digest_hours", 24))
     now = now or utcnow()
-    last = latest_digest(session)
-    items = window_items(session, hours, now, stored_after=last.created_at if last else None)
+    items = pending_talk(session, hours, now)
     if not items:
         return None  # nothing new since the last digest
     sources = community_sources(session)
     text, included = render(items, sources, int(settings.get("max_chars", 80000)), conversation_stats(session))
+    shown = [i for i in items if i.id in set(included)]
     tz = ZoneInfo(get_settings().timezone)
-    start = min(when(items[0]), now)
+    start = min(when(shown[0]), now)
     prompt = load_prompt(
         "community_digest",
         hours=hours,
         interests=config.interests,
         window=f"{start.astimezone(tz):%H:%M %d/%m} – {now.astimezone(tz):%H:%M %d/%m/%Y}",
-        count=len(items),
+        count=len(shown),
+        total=len(items),
         messages=text,
     )
     data = claude.call_json(
         CallSpec("community", prompt.system, prompt.user, DIGEST_SCHEMA, effort=settings.get("digest_effort", "high"), max_tokens=16000)
     )
-    known = {i.id for i in items}
+    known = {i.id for i in shown}
     for section in ("topics", "open_questions"):
         for entry in data.get(section, []):
             entry["item_ids"] = [i for i in entry.get("item_ids", []) if i in known][:5]
     for topic in data.get("topics", []):
-        topic["mentions"] = max(int(topic.get("mentions") or 0), len(topic["item_ids"]))
-        topic["people"] = max(int(topic.get("people") or 0), 0)
+        related = {i for i in topic.pop("related_ids", []) if i in known} | set(topic["item_ids"])
+        topic["mentions"], topic["people"] = topic_size(related, shown)
     data["topics"] = sorted(data.get("topics", []), key=lambda t: (t["mentions"], t["people"]), reverse=True)
     counts: dict[str, int] = defaultdict(int)
-    for item in items:
+    for item in shown:
         counts[place(item, sources)] += 1
     data.update(
         window_start=start.isoformat(),
         window_end=now.isoformat(),
         places=[{"name": name, "count": n} for name, n in sorted(counts.items(), key=lambda kv: -kv[1])],
-        included=included,
-        all_item_ids=[i.id for i in items],
+        included=len(shown),
+        left_for_next=len(items) - len(shown),
+        all_item_ids=[i.id for i in shown],
     )
-    report = Report(kind=KIND, period_start=start.astimezone(tz).date(), period_end=now.astimezone(tz).date(), content=data, items_considered=len(items), model=claude.model)
+    report = Report(kind=KIND, period_start=start.astimezone(tz).date(), period_end=now.astimezone(tz).date(), content=data, items_considered=len(shown), model=claude.model)
     session.add(report)
     session.flush()
     return report

@@ -243,7 +243,7 @@ export interface CommunityTopic {
   sources: string[];
   item_ids: number[];
   items: CommunityRef[];
-  /** Messages about this topic and people taking part (Claude's count; older digests lack them). */
+  /** Messages about this topic (with their replies) and people taking part, counted by radar; older digests lack them. */
   mentions?: number;
   people?: number;
 }
@@ -256,6 +256,8 @@ export interface CommunityPage {
     window_start?: string;
     window_end?: string;
     places?: { name: string; count: number }[];
+    /** Messages that did not fit in this digest and wait for the next one. */
+    left_for_next?: number;
     overview: string;
     topics: CommunityTopic[];
     open_questions: { text: string; item_ids: number[]; items: CommunityRef[] }[];
