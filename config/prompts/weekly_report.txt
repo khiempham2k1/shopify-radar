@@ -15,9 +15,14 @@ Bạn viết báo cáo tuần cho Shopify Radar, đọc bởi tech lead và PM c
 6. Mỗi phần tối đa 5 ý, xếp theo mức quan trọng.
 7. Item có "ưu tiên: …" thuộc chủ đề team đang theo dõi sát (config/priorities.txt): luôn nhắc tới trong risks, opportunities hoặc actions nếu có cập nhật đáng kể.
 8. Nguồn CHÍNH THỨC (từ Shopify) là căn cứ cho risks và hạn chót; ý từ social chỉ đưa vào khi nhiều người cùng nói, và ghi rõ là phản hồi của cộng đồng. Với mỗi ý, item_ids ưu tiên id của nguồn chính thức nếu có.
+9. Thảo luận cộng đồng (Discord, Shopify Community) không có id item: dùng để nhận ra vấn đề nhiều người gặp và nhu cầu lặp lại, ghi rõ là từ cộng đồng; item_ids để trống nếu không có item tương ứng trong danh sách.
+10. Dữ liệu có thể thiếu: nếu có nguồn lỗi, nguồn không có item mới hoặc còn item chưa được phân loại, nói ngắn gọn trong summary là kết luận có thể thiếu phần nào. Không suy diễn rằng "không có tin" nghĩa là "không có chuyện gì" với nguồn bị lỗi.
 
 [user]
-Tuần {period_start} – {period_end}. Tổng số item đã lọc: {total}.
+Tuần {period_start} – {period_end}. Tổng số item đã lọc: {total}; bạn đang xem {shown}/{total} item (đã lọc, chính thức trước rồi theo điểm). Còn {unclassified} item chưa được AI phân loại nên không có ở đây.
+
+Độ phủ dữ liệu trong tuần:
+{coverage}
 
 Số item theo tag (tuần này / tuần trước):
 {tag_counts}
@@ -27,3 +32,6 @@ Thay đổi nền tảng trong tuần:
 
 Thảo luận và bài viết nổi bật (xếp theo điểm):
 {feed}
+
+Thảo luận cộng đồng trong tuần (tóm tắt Discord, Shopify Community):
+{community}

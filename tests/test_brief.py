@@ -63,3 +63,15 @@ def test_no_brief_without_anything_to_read(session, config, fake_anthropic):
     claude = make_claude(session, config, fake_anthropic)
     assert brief.refresh(session, config, claude, force=True) is None
 
+
+
+def test_brief_leaves_out_dismissed_posts(session, config, fake_anthropic):
+    from radar.models import ItemStatus
+
+    claude = seed(session, config, fake_anthropic)
+    dismissed = session.scalar(select(Item).where(Item.source_id == "reddit").order_by(Item.id))
+    session.add(ItemStatus(item_id=dismissed.id, status="dismissed"))
+    session.commit()
+    content = session.get(Report, brief.refresh(session, config, claude, force=True)).content
+    assert dismissed.id not in {p["item_id"] for p in content["must_read"]}
+    assert content["posts_considered"] == 1

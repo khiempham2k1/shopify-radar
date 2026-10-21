@@ -483,3 +483,54 @@ def test_haiku_default_runs_without_fallbacks_at_high_effort(session, config, fa
     assert call["model"] == "claude-haiku-5-5" and "fallbacks" not in call and "betas" not in call
     assert call["output_config"]["effort"] == "high"
     assert build_spec(session, config, [], []).effort == "high"
+
+
+def test_weekly_report_is_honest_about_what_it_saw(session, config, fake_anthropic):
+    from radar.models import Report
+
+    add_items(session, config, "reddit", ["Looking for a Shopify theme", "Shopify theme quick add broken"])
+    add_items(session, config, "shopify-dev-changelog", ["Cart API change"])
+    week_ago = utcnow() - timedelta(days=9)
+    for item in session.scalars(select(Item)):
+        item.first_seen = week_ago
+    claude = make_claude(session, config, fake_anthropic)
+    classify(session, config, claude)
+    kept, dismissed = session.scalars(select(Item).where(Item.source_id == "reddit").order_by(Item.id)).all()
+    session.add(ItemStatus(item_id=dismissed.id, status="dismissed"))
+    # Not classified yet; a Reddit run that failed; a community digest of that week.
+    store_items(session, "reddit", [CollectedItem(url="https://example.com/reddit/waiting", title="Shopify liquid filter question")], config.keywords)
+    waiting = session.scalar(select(Item).where(Item.title == "Shopify liquid filter question"))
+    waiting.first_seen = week_ago
+    session.add(SourceStatus(source_id="reddit", status="error", message="cookie", created_at=week_ago))
+    session.add(
+        Report(
+            kind="community",
+            period_start=week_ago.date(),
+            period_end=week_ago.date(),
+            created_at=week_ago,
+            content={"topics": [{"title": "Theme editor chậm", "summary": "Nhiều người báo.", "mentions": 4, "people": 3}], "open_questions": [{"text": "Sửa sao?"}]},
+        )
+    )
+    session.commit()
+
+    report = build_report(session, config, claude, today=(week_ago + timedelta(days=7)).date())
+    content = report.content
+    prompt = fake_anthropic.messages.calls[-1]["messages"][0]["content"]
+    assert f"[{dismissed.id}]" not in prompt and f"[{kept.id}]" in prompt
+    assert "đang xem 2/2 item" in prompt and "Còn 1 item chưa được AI phân loại" in prompt
+    assert "Reddit: lỗi 1/1 lần chạy" in prompt
+    assert "Theme editor chậm (4 tin, 3 người)" in prompt and "Sửa sao?" in prompt
+    assert content["unclassified"] == 1 and content["items_shown"] == content["items_total"] == 2
+    reddit = next(c for c in content["coverage"] if c["source"] == "reddit")
+    assert reddit["errors"] == 1 and reddit["new_items"] == 3
+    # The fake classifier gives every item a 2027-01-01 deadline; only the platform change is listed.
+    assert [d["title"] for d in content["deadlines"]] == ["Cart API change"] and content["deadlines"][0]["deadline"] == "2027-01-01"
+
+
+def test_weekly_report_classifies_waiting_items_first(session, config, fake_anthropic):
+    from radar.pipeline import weekly_report
+
+    add_items(session, config, "reddit", ["Looking for a Shopify theme"])
+    session.commit()
+    weekly_report(session, claude_client=fake_anthropic)
+    assert session.scalar(select(func.count(AIAnalyzed.item_id))) == 1

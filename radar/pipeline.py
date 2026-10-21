@@ -97,6 +97,13 @@ def run_once(session: Session, only: list[str] | None = None, claude_client: Any
 
 def weekly_report(session: Session, claude_client: Any | None = None) -> Report:
     config = load_config(session)
-    report = build_report(session, config, make_claude(session, config, claude_client))
+    claude = make_claude(session, config, claude_client)
+    try:
+        # Classify what is still waiting first, so the report does not miss it.
+        classify(session, config, claude)
+    except Exception:  # noqa: BLE001 - the report says how many items stay unclassified
+        log.exception("Classification before the weekly report failed")
+        session.rollback()
+    report = build_report(session, config, claude)
     session.commit()
     return report

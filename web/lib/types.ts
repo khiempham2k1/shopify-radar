@@ -176,6 +176,15 @@ export interface ReportDetail extends ReportSummary {
     opportunities?: ReportPoint[];
     actions?: { text: string; owner?: string }[];
     tag_counts?: { tag: string; count: number; previous: number }[];
+    /** Items Claude was shown out of those the week kept, and items still unclassified. */
+    items_total?: number;
+    items_shown?: number;
+    unclassified?: number;
+    /** Per enabled source: collection runs of the week, failed/warned runs, new items. */
+    coverage?: { source: string; name: string; kind: string; runs: number; errors: number; warnings: number; new_items: number }[];
+    /** Platform-change deadlines from the start of the week on, read from classification results. */
+    deadlines?: { item_id: number; title: string; url: string; deadline: string; impact: "high" | "med" | "low" | null; area: string | null; affects: string | null }[];
+    community_digests?: number;
   };
   items: Record<string, { id: number; title: string; url: string }>;
 }
