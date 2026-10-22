@@ -15,13 +15,12 @@ Bạn tổng hợp thảo luận cộng đồng cho team làm theme trên Shopif
    - kind: question (hỏi đáp), problem (báo lỗi, phàn nàn), tip (chia sẻ mẹo, cách làm), news (tin tức, thông báo), discussion (bàn luận chung).
    - sources: nơi diễn ra, ghi như "Discord #general" hoặc "Shopify Community".
    - item_ids: id các tin làm dẫn chứng (lấy từ danh sách), tối đa 5, chọn tin rõ nhất (ưu tiên tin mở đầu cuộc trao đổi nhiều phản hồi).
-   - mentions: số tin trong danh sách nói về chủ đề này (đếm cả tin trả lời).
-   - people: số người khác nhau tham gia chủ đề này.
+   - related_ids: id của MỌI tin trong danh sách nói về chủ đề này (kể cả tin trả lời), để radar tự đếm số tin và số người tham gia. Không bịa id.
 4. open_questions: câu hỏi đáng chú ý chưa ai trả lời (tối đa 8), mỗi câu ghi lại bằng tiếng Việt kèm item_ids.
 5. Bỏ qua chào hỏi, spam, quảng cáo dịch vụ, tin không có nội dung.
 6. Chỉ dựa vào tin được cung cấp, không bịa id và không suy đoán thêm.
 
 [user]
-Khung thời gian: {window}. Tổng số tin: {count}.
+Khung thời gian: {window}. Đang xem {count}/{total} tin; tin chưa có ở đây sẽ được tóm tắt ở bản sau.
 
 {messages}

@@ -347,3 +347,49 @@ def test_conversation_stats_count_the_whole_reply_chain(session, config):
     stats = community.conversation_stats(session)
     assert stats[ids["1"]] == {"replies": 2, "thread": 3, "reactions": 0, "engagement": 6}
     assert stats[ids["3"]]["thread"] == 1 and stats[ids["4"]]["engagement"] == 3 and stats[ids["5"]]["engagement"] == 0
+
+
+def test_messages_cut_for_length_go_into_the_next_digest(session, config, fake_anthropic):
+    seed_talk(session, config)
+    config.raw["community"] = {**config.raw.get("community", {}), "max_chars": 200}  # room for about one line per place
+    claude = ClaudeClient(session, model="claude-opus-5-5", client=fake_anthropic)
+    first = session.get(Report, community.refresh(session, config, claude)["digest"])
+    shown = set(first.content["all_item_ids"])
+    assert first.content["left_for_next"] > 0 and first.items_considered == len(shown) < 6
+    assert "Đang xem" in fake_anthropic.messages.calls[-1]["messages"][0]["content"]
+    pending = {i.id for i in community.pending_talk(session, 24)}
+    assert pending and not pending & shown
+    # Everything is summed up over the next digests, each message once.
+    covered = set(shown)
+    for _ in range(10):
+        result = community.refresh(session, config, claude, force=True)["digest"]
+        if result is None:
+            break
+        ids = set(session.get(Report, result).content["all_item_ids"])
+        assert not ids & covered
+        covered |= ids
+    assert covered == {i.id for i in community.window_items(session, 24)}
+
+
+def test_digest_written_before_ids_were_kept_still_covers_its_talk(session, config, fake_anthropic):
+    seed_talk(session, config)
+    session.add(Report(kind="community", period_start=utcnow().date(), period_end=utcnow().date(), content={"overview": "cũ"}, created_at=utcnow()))
+    session.flush()
+    assert community.pending_talk(session, 24) == []
+
+
+def test_topic_size_is_counted_from_messages_and_replies(session, config, fake_anthropic):
+    from radar.collectors.discord import raw_message_to_item
+
+    msgs = [
+        api_message("1", "Editor freezes", author={"username": "an"}),
+        api_message("2", "Same here", message_reference={"message_id": "1"}, author={"username": "binh"}),
+        api_message("3", "Try disabling apps", message_reference={"message_id": "2"}, author={"username": "an"}),
+        api_message("4", "Unrelated", author={"username": "chi"}),
+    ]
+    store_items(session, "discord", [raw_message_to_item(m, "111", "general") for m in msgs], config.keywords, max_age_days=7)
+    session.flush()
+    ids = {i.external_id: i.id for i in session.scalars(select(community.Item).where(community.Item.source_id == "discord"))}
+    items = community.window_items(session, 24)
+    assert community.topic_size({ids["1"]}, items) == (3, 2)
+    assert community.topic_size({ids["1"], ids["4"], 99999}, items) == (4, 3)

@@ -16,7 +16,7 @@ Bạn phân loại tin cho Shopify Radar, dashboard nội bộ của một công
 ## Quy tắc
 
 0. Item đánh dấu CHÍNH THỨC đến từ chính Shopify (changelog, Editions, tài liệu shopify.dev, tài khoản Shopify trên X…). Đó là căn cứ: hạn chót, mức ảnh hưởng và chi tiết kỹ thuật lấy theo nguồn chính thức. Thảo luận social chỉ là phản hồi của cộng đồng; nếu mâu thuẫn với nguồn chính thức thì tin nguồn chính thức, và tóm tắt nói rõ đó là ý kiến hoặc tin đồn.
-1. Item nguồn loại platform (thay đổi nền tảng chính thức) LUÔN phải có trong kết quả, kể cả khi không liên quan: khi đó chọn mảng nhóm KHÔNG liên quan, score ≤ 0.2 và ghi rõ lý do. Item nguồn khác không liên quan thì có thể bỏ khỏi kết quả.
+1. MỌI item đều phải có trong kết quả, kể cả khi không liên quan: khi đó chọn mảng nhóm KHÔNG liên quan, score ≤ 0.2 và ghi rõ lý do. Team đọc lại lý do để biết vì sao một tin bị loại.
 2. area: chọn mảng khớp nhất theo mô tả ở trên. Cách quyết định:
    a. Thay đổi có chạm tới storefront không: những gì khách thấy hoặc thao tác trên theme (trang, giỏ hàng, checkout bắt đầu từ storefront, tìm kiếm, sự kiện kích hoạt khi khách thao tác), dữ liệu theme hiển thị, cách merchant chỉnh theme? Có → chọn mảng nhóm theme hoặc merchant, KỂ CẢ khi Shopify mô tả qua API, webhook hay sự kiện (ví dụ "carts/update không còn bắn khi giỏ hàng không đổi" → cart_checkout).
    b. Có liên quan Theme Store, quy trình duyệt, Partner Program, doanh thu? → mảng nhóm partner.
@@ -30,7 +30,7 @@ Bạn phân loại tin cho Shopify Radar, dashboard nội bộ của một công
 8. impact: chỉ cho item nguồn platform có mảng liên quan, đo theo những bên trong affects: high (theme phải sửa, có hạn chót, làm hỏng theme, trượt duyệt hoặc bị gỡ khỏi Theme Store, ảnh hưởng doanh thu Partner), med (nên cập nhật để tận dụng hoặc tránh lỗi, merchant sẽ hỏi tới), low (để biết). Nguồn khác hoặc mảng KHÔNG liên quan để null.
 9. deadline: ngày hạn chót (YYYY-MM-DD) nếu nội dung nêu rõ; không có thì null. Không tự suy đoán ngày.
 10. summary: 1–2 câu tiếng Việt, nói rõ ảnh hưởng tới từng bên trong affects: theme phải sửa gì, Partner phải làm gì, merchant thấy gì. Không lặp lại tiêu đề.
-11. Chỉ dựa vào tiêu đề và nội dung được cung cấp, không suy đoán thêm. Item giống những ví dụ "không liên quan" bên dưới thì chọn mảng KHÔNG liên quan (nếu là platform) hoặc bỏ qua.
+11. Chỉ dựa vào tiêu đề và nội dung được cung cấp, không suy đoán thêm. Item giống những ví dụ "không liên quan" bên dưới thì chọn mảng KHÔNG liên quan.
 
 ## Ví dụ team đã đánh dấu không liên quan
 

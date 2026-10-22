@@ -176,6 +176,15 @@ export interface ReportDetail extends ReportSummary {
     opportunities?: ReportPoint[];
     actions?: { text: string; owner?: string }[];
     tag_counts?: { tag: string; count: number; previous: number }[];
+    /** Items Claude was shown out of those the week kept, and items still unclassified. */
+    items_total?: number;
+    items_shown?: number;
+    unclassified?: number;
+    /** Per enabled source: collection runs of the week, failed/warned runs, new items. */
+    coverage?: { source: string; name: string; kind: string; runs: number; errors: number; warnings: number; new_items: number }[];
+    /** Platform-change deadlines from the start of the week on, read from classification results. */
+    deadlines?: { item_id: number; title: string; url: string; deadline: string; impact: "high" | "med" | "low" | null; area: string | null; affects: string | null }[];
+    community_digests?: number;
   };
   items: Record<string, { id: number; title: string; url: string }>;
 }
@@ -243,7 +252,7 @@ export interface CommunityTopic {
   sources: string[];
   item_ids: number[];
   items: CommunityRef[];
-  /** Messages about this topic and people taking part (Claude's count; older digests lack them). */
+  /** Messages about this topic (with their replies) and people taking part, counted by radar; older digests lack them. */
   mentions?: number;
   people?: number;
 }
@@ -256,6 +265,8 @@ export interface CommunityPage {
     window_start?: string;
     window_end?: string;
     places?: { name: string; count: number }[];
+    /** Messages that did not fit in this digest and wait for the next one. */
+    left_for_next?: number;
     overview: string;
     topics: CommunityTopic[];
     open_questions: { text: string; item_ids: number[]; items: CommunityRef[] }[];

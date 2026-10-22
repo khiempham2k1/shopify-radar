@@ -108,11 +108,14 @@ def pending_items(session: Session, config: RadarConfig) -> list[Item]:
     return list(session.scalars(stmt))
 
 
-def render_items(items: list[Item], source_names: dict[str, tuple[str, str]], chars: int) -> str:
+def render_items(items: list[Item], source_names: dict[str, tuple[str, str]], chars: int, platform_chars: int | None = None) -> str:
+    """Items as Claude reads them. Platform changes get `platform_chars` of their text: deadlines
+    and what themes must change are often at the end of a changelog entry."""
     blocks = []
     for item in items:
         name, kind = source_names.get(item.source_id, (item.source_id, ""))
-        content = " ".join((item.content or "").split())[:chars]
+        limit = platform_chars if kind == "platform" and platform_chars else chars
+        content = " ".join((item.content or "").split())[:limit]
         flag = " · CHÍNH THỨC" if item.official else ""
         lines = [f"[id={item.id}] nguồn: {name} ({kind}){flag} · loại: {item.media_type}", f"Tiêu đề: {item.title}"]
         if content:
@@ -155,7 +158,7 @@ def build_spec(session: Session, config: RadarConfig, tags: list[AITag], items: 
         areas=render_areas(config.areas),
         dismissed=dismissed_examples(session),
         count=len(items),
-        items=render_items(items, names, int(config.ai.get("content_chars", 500))),
+        items=render_items(items, names, int(config.ai.get("content_chars", 500)), int(config.ai.get("platform_content_chars", 4000))),
     )
     return CallSpec(
         "classify",

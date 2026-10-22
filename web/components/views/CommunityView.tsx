@@ -123,7 +123,7 @@ function Digest({ data, onPick }: { data: CommunityPage; onPick: (id: number | n
         {d.window_start && d.window_end ? `${fmtDateTime(d.window_start)} – ${fmtDateTime(d.window_end)} · ` : ""}
         AI tóm tắt {fmtNumber(d.items_considered)} tin mới so với bản trước
         {d.places?.length ? ` (${d.places.map((p) => `${p.name}: ${fmtNumber(p.count)}`).join(", ")})` : ""}
-        {data.pending > 0 ? ` · ${fmtNumber(data.pending)} tin đến sau, sẽ vào bản tóm tắt tới` : ""}
+        {data.pending > 0 ? ` · ${fmtNumber(data.pending)} tin chưa được tóm tắt, sẽ vào bản tóm tắt tới` : ""}
       </p>
       <p className="c-overview">{d.overview}</p>
 

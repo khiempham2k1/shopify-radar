@@ -279,3 +279,4 @@ Code của cả ba giai đoạn đã có trong repo. Cách chạy xem [`README.m
 - Feed xếp theo độ hot (tương tác so với cùng nguồn, giảm theo thời gian) thay vì điểm tổng hợp.
 - Phân loại thêm trường "ảnh hưởng tới" (theme / partner / merchant), lọc được trên trang Feed và Thay đổi nền tảng. Storefront API chỉ giữ phần theme dùng tới; Hydrogen và headless bị bỏ qua.
 - Thêm sau khi chạy thử thật: chỉ giữ thông tin mới (`freshness.max_age_days`, mặc định 30 ngày; độ mới tính từ ngày đăng thật) và chủ đề ưu tiên (`config/priorities.txt`, sửa trên trang Cài đặt).
+- Độ đầy đủ của dữ liệu tổng hợp (21/10/2026): tóm tắt cộng đồng không bỏ tin vượt `max_chars`; báo cáo tuần và tóm tắt Tổng quan bỏ item bị đánh "Không liên quan", báo cáo tuần đọc thêm tóm tắt cộng đồng và tự ghi độ phủ dữ liệu, item chưa phân loại, hạn chót lấy từ DB; phân loại đọc thay đổi nền tảng dài hơn và trả lý do cho mọi item. Chưa làm: nút phản hồi, `radar eval`, trang chất lượng dữ liệu.

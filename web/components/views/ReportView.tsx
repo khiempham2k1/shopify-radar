@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useApi } from "@/lib/api";
-import { fmtDateTime, fmtNumber, pctChange, signed } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtNumber, IMPACT, pctChange, signed } from "@/lib/format";
 import type { ReportDetail, ReportPoint } from "@/lib/types";
 import { Empty, ErrorBox, Loading } from "../States";
 import { reportPeriod, reportTitle } from "./ReportsView";
@@ -37,6 +37,9 @@ export function ReportView({ id }: { id: string }) {
   const { data, error, loading, reload } = useApi<ReportDetail>(valid ? `reports/${id}` : null);
   const c = data?.content;
   const tagCounts = c?.tag_counts ?? [];
+  const coverage = c?.coverage ?? [];
+  const gaps = coverage.filter((s) => s.runs === 0 || s.errors > 0 || s.new_items === 0);
+  const deadlines = c?.deadlines ?? [];
 
   return (
     <>
@@ -52,7 +55,13 @@ export function ReportView({ id }: { id: string }) {
             <div>
               <h1>{reportTitle(data)}</h1>
               <p>
-                {reportPeriod(data)} · AI viết từ {fmtNumber(data.items_considered)} item đã lọc.
+                {reportPeriod(data)} · AI viết từ{" "}
+                {c.items_shown != null && c.items_total != null && c.items_shown < c.items_total
+                  ? `${fmtNumber(c.items_shown)}/${fmtNumber(c.items_total)}`
+                  : fmtNumber(data.items_considered)}{" "}
+                item đã lọc
+                {c.community_digests ? ` và ${fmtNumber(c.community_digests)} bản tóm tắt cộng đồng` : ""}.
+                {c.unclassified ? ` Còn ${fmtNumber(c.unclassified)} item chưa được AI phân loại.` : ""}
               </p>
             </div>
             <div className="stamp mono">
@@ -92,6 +101,70 @@ export function ReportView({ id }: { id: string }) {
               )}
             </div>
           </div>
+
+          {deadlines.length > 0 && (
+            <div className="panel">
+              <h2>Hạn chót</h2>
+              <p className="sub">Từ thay đổi nền tảng, lấy từ kết quả phân loại (không do AI viết lại)</p>
+              <div className="table-wrap">
+                <table className="narrow">
+                  <thead>
+                    <tr>
+                      <th>Hạn</th>
+                      <th>Thay đổi</th>
+                      <th>Mức</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deadlines.map((d) => (
+                      <tr key={d.item_id}>
+                        <td className="mono">{fmtDate(d.deadline)}</td>
+                        <td>
+                          <a href={d.url} target="_blank" rel="noopener noreferrer">
+                            {d.title}
+                          </a>
+                        </td>
+                        <td>{d.impact ? IMPACT[d.impact] : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {coverage.length > 0 && (
+            <div className="panel">
+              <h2>Độ phủ dữ liệu</h2>
+              <p className="sub">
+                {gaps.length === 0
+                  ? "Mọi nguồn đều chạy bình thường trong tuần."
+                  : `${fmtNumber(gaps.length)} nguồn lỗi hoặc không có item mới: kết luận có thể thiếu phần này.`}
+              </p>
+              <div className="table-wrap">
+                <table className="narrow">
+                  <thead>
+                    <tr>
+                      <th>Nguồn</th>
+                      <th className="num">Lần chạy</th>
+                      <th className="num">Lỗi</th>
+                      <th className="num">Item mới</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {coverage.map((s) => (
+                      <tr key={s.source}>
+                        <td>{s.name}</td>
+                        <td className="num">{fmtNumber(s.runs)}</td>
+                        <td className="num">{s.errors ? fmtNumber(s.errors) : "—"}</td>
+                        <td className="num">{fmtNumber(s.new_items)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="panel">
             <h2>Số item theo tag</h2>

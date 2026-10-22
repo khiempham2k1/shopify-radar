@@ -34,7 +34,7 @@ from radar.ai.community import (
     place,
     when,
 )
-from radar.ai.insights import item_line
+from radar.ai.insights import dismissed_ids, item_line
 from radar.config_loader import RadarConfig, load_prompt
 from radar.models import AIResult, Item, Report, Source, utcnow
 
@@ -75,7 +75,8 @@ def settings(config: RadarConfig) -> dict[str, Any]:
 
 
 def post_candidates(session: Session, config: RadarConfig, since: datetime, limit: int) -> list[Item]:
-    """Posts of the window that classification kept (or priority topics), official first, then by score."""
+    """Posts of the window that classification kept (or priority topics) and nobody dismissed,
+    official first, then by score."""
     min_score = float(config.ai.get("min_score", 0.5))
     matched = select(AIResult.item_id).where(AIResult.status == "active", AIResult.score >= min_score)
     stmt = (
@@ -85,6 +86,7 @@ def post_candidates(session: Session, config: RadarConfig, since: datetime, limi
             Source.kind != COMMUNITY_KIND,
             Item.first_seen >= since,
             or_(Item.id.in_(matched), Item.priority.is_not(None)),
+            Item.id.not_in(dismissed_ids()),  # the team said it is not relevant
         )
         .options(selectinload(Item.results).selectinload(AIResult.tag))
         .order_by(Item.official.desc(), Item.priority.is_(None), Item.score.desc())

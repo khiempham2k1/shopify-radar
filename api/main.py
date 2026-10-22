@@ -560,13 +560,13 @@ def community_page(
 ) -> dict[str, Any]:
     """What people discuss: the Vietnamese digest (latest, or the one asked for) and the
     threads and Discord messages behind it. Each digest holds only talk no earlier digest
-    did, so nothing repeats from one to the next. Viewing the latest also lists what came
-    in after it (`pending`: summed up in the next digest). Not rated.
+    did, so nothing repeats from one to the next. Viewing the latest also lists what no
+    digest has covered yet (`pending`: summed up in the next digest). Not rated.
 
     Discord messages: sort=hot (default) lists the conversations people answered or
     reacted to most first, each with its replies under it; sort=new lists every message,
     newest first."""
-    from radar.ai.community import KIND, community_sources, conversation_stats, place, window_items
+    from radar.ai.community import KIND, community_sources, conversation_stats, pending_talk, place, window_items
 
     sources = community_sources(session)
     digests = list(session.scalars(select(Report).where(Report.kind == KIND).order_by(Report.created_at.desc(), Report.id.desc()).limit(30)))
@@ -592,7 +592,7 @@ def community_page(
     if is_latest:
         if chosen is not None and not items:  # older digest format: the usual 24 h view
             items = window_items(session, hours)
-        newer = window_items(session, hours, stored_after=chosen.created_at) if chosen is not None else window_items(session, hours)
+        newer = pending_talk(session, hours) if chosen is not None else window_items(session, hours)
         seen = {i.id for i in items}
         pending_ids = {i.id for i in newer if i.id not in seen} if chosen is not None else set()
         items = sorted([*items, *[i for i in newer if i.id not in seen]], key=lambda i: i.published_at or i.first_seen)
