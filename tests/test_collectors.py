@@ -93,6 +93,14 @@ Checkout UI extensions now target the thank you page, replacing additional scrip
 """
 
 
+def test_editions_recognise_spring_and_fall_naming():
+    md = (
+        "[Open](https://www.shopify.com/editions/fall2026) [Open](https://www.shopify.com/editions/spring2026) "
+        "[Open](https://www.shopify.com/editions/winter2026) [Open](https://www.shopify.com/editions/summer2025)"
+    )
+    assert [n for n, _ in find_editions(md)] == ["Fall '26", "Spring '26", "Winter '26", "Summer '25"]
+
+
 def test_editions_newest_first_and_features_split():
     editions = find_editions(EDITIONS_INDEX)
     assert editions[0] == ("Summer '26", "https://www.shopify.com/editions/summer2026")

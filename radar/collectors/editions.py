@@ -7,7 +7,10 @@ from urllib.parse import urljoin
 
 from radar.collectors.base import CollectedItem, CollectError, Collector
 
-EDITION_LINK = re.compile(r"https?://www\.shopify\.com/editions/(summer|winter)(\d{4})\b[^)\s\"]*|/editions/(summer|winter)(\d{4})\b")
+EDITION_LINK = re.compile(r"https?://www\.shopify\.com/editions/(winter|spring|summer|fall)(\d{4})\b[^)\s\"]*|/editions/(winter|spring|summer|fall)(\d{4})\b")
+
+
+SEASON_ORDER = {"winter": 1, "spring": 2, "summer": 3, "fall": 4}
 
 
 def slugify(text: str) -> str:
@@ -25,8 +28,9 @@ def find_editions(markdown: str) -> list[tuple[str, str]]:
         season = match.group(1) or match.group(3)
         year = match.group(2) or match.group(4)
         url = f"https://www.shopify.com/editions/{season}{year}"
-        # Winter Editions ship in December/January, before Summer of the same year label.
-        order = int(year) * 10 + (2 if season == "summer" else 1)
+        # Within one year label: Winter (Dec) < Spring < Summer < Fall. Shopify renamed Summer to
+        # Spring/Fall in 2026, so all four seasons must be recognised or the newest Edition is missed.
+        order = int(year) * 10 + SEASON_ORDER[season]
         seen.setdefault(url, (order, edition_name(season, year)))
     ranked = sorted(seen.items(), key=lambda kv: kv[1][0], reverse=True)
     return [(name, url) for url, (_, name) in ranked]
