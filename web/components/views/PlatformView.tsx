@@ -64,6 +64,7 @@ export function PlatformView() {
   const editions = useApi<Edition[]>("editions");
   const sources = useApi<Source[]>("sources");
   const [source, setSource] = useState("");
+  const [edition, setEdition] = useState("");
   const [affects, setAffects] = useState("");
   const [allChanges, setAllChanges] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -76,6 +77,7 @@ export function PlatformView() {
   const query = (offset: number) => {
     const p = new URLSearchParams({ view: "platform", limit: String(PAGE), offset: String(offset) });
     if (source) p.set("source", source);
+    if (edition) p.set("edition", edition);
     if (affects) p.set("affects", affects);
     if (allChanges) p.set("all_changes", "true");
     return `items?${p}`;
@@ -87,6 +89,7 @@ export function PlatformView() {
     setError(null);
     const p = new URLSearchParams({ view: "platform", limit: String(PAGE), offset: "0" });
     if (source) p.set("source", source);
+    if (edition) p.set("edition", edition);
     if (affects) p.set("affects", affects);
     if (allChanges) p.set("all_changes", "true");
     api<ItemList>(`items?${p}`, "GET", undefined, ctrl.signal)
@@ -101,7 +104,7 @@ export function PlatformView() {
         setLoading(false);
       });
     return () => ctrl.abort();
-  }, [source, affects, allChanges, tick]);
+  }, [source, edition, affects, allChanges, tick]);
 
   async function loadMore() {
     setLoadingMore(true);
@@ -116,7 +119,17 @@ export function PlatformView() {
     }
   }
 
+  function pickSource(id: string) {
+    setSource(id);
+    setEdition("");
+  }
+
   const platformSources = (sources.data ?? []).filter((s) => s.kind === "platform" && s.enabled);
+  // Edition cards and the per-Edition filter only make sense on the Shopify Editions tab.
+  const editionSource = platformSources.find((s) => s.type === "editions");
+  const onEditions = !!editionSource && source === editionSource.id;
+  const editionList = editions.data ?? [];
+  const shownEditions = edition ? editionList.filter((e) => e.edition === edition) : editionList.slice(0, 2);
   const sourceName = platformSources.find((s) => s.id === source)?.name;
 
   return (
@@ -128,15 +141,15 @@ export function PlatformView() {
         </div>
       </div>
 
-      {editions.error && <ErrorBox error={editions.error} onRetry={() => editions.reload()} prefix="Không tải được tóm tắt Editions" />}
-      {editions.data?.slice(0, 2).map((e) => <EditionCard key={e.edition} e={e} />)}
+      {onEditions && editions.error && <ErrorBox error={editions.error} onRetry={() => editions.reload()} prefix="Không tải được tóm tắt Editions" />}
+      {onEditions && shownEditions.map((e) => <EditionCard key={e.edition} e={e} />)}
 
       <div className="filters" role="group" aria-label="Bộ lọc">
-        <button type="button" className="chip" aria-pressed={source === ""} onClick={() => setSource("")}>
+        <button type="button" className="chip" aria-pressed={source === ""} onClick={() => pickSource("")}>
           Tất cả
         </button>
         {platformSources.map((s) => (
-          <button key={s.id} type="button" className="chip" aria-pressed={source === s.id} onClick={() => setSource(s.id)}>
+          <button key={s.id} type="button" className="chip" aria-pressed={source === s.id} onClick={() => pickSource(s.id)}>
             {s.name}
           </button>
         ))}
@@ -148,13 +161,28 @@ export function PlatformView() {
         <AffectsSelect value={affects} onChange={setAffects} />
       </div>
 
+      {onEditions && editionList.length > 0 && (
+        <div className="filters" role="group" aria-label="Lọc theo Edition">
+          <button type="button" className="chip" aria-pressed={edition === ""} onClick={() => setEdition("")}>
+            Tất cả Edition
+          </button>
+          {editionList.map((e) => (
+            <button key={e.edition} type="button" className="chip" aria-pressed={edition === e.edition} onClick={() => setEdition(e.edition)}>
+              {e.edition}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="panel">
         {error && <ErrorBox error={error} onRetry={() => setTick((t) => t + 1)} />}
         {loading ? (
           <Loading />
         ) : !error && items.length === 0 ? (
           <Empty>
-            {affects
+            {edition
+              ? `Không có tính năng nào của ${edition} khớp bộ lọc.`
+              : affects
               ? "Không có thay đổi nào khớp bộ lọc trong 60 ngày qua."
               : sourceName
                 ? `Không có thay đổi nào từ ${sourceName} trong 60 ngày qua.`
