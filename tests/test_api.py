@@ -67,6 +67,14 @@ def test_item_detail_includes_segments(client):
     assert detail["transcript"]["segments"]
 
 
+def test_items_filter_by_edition(client):
+    everything = client.get("/api/items", params={"view": "platform", "all_changes": "true", "limit": 200}).json()
+    only = client.get("/api/items", params={"view": "platform", "all_changes": "true", "edition": "Summer '26", "limit": 200}).json()
+    assert only["total"] == 6 and {i["source"]["id"] for i in only["items"]} == {"shopify-editions"}
+    assert only["total"] < everything["total"]
+    assert client.get("/api/items", params={"view": "platform", "edition": "Nope '99"}).json()["total"] == 0
+
+
 def test_editions_and_health(client):
     editions = client.get("/api/editions").json()
     assert editions[0]["edition"] == "Summer '26" and editions[0]["total"] == 6

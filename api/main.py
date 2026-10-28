@@ -254,6 +254,7 @@ def list_items(
     priority: bool = False,
     sort: Sort | None = None,
     all_changes: bool = False,
+    edition: str | None = None,
     days: int = Query(60, ge=1, le=365),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -265,7 +266,10 @@ def list_items(
 
     stmt = item_query().join(Source, Source.id == Item.source_id).outerjoin(ItemStatus, ItemStatus.item_id == Item.id)
     # Community talk (Discord, Shopify Community) has its own page: /api/community.
-    conditions = [Item.last_seen >= now - timedelta(days=days), Source.kind != "community"]
+    conditions = [Source.kind != "community"]
+    # Past Editions are no longer re-read, so their items age out of the window; picking one lists all of it.
+    if not edition:
+        conditions.append(Item.last_seen >= now - timedelta(days=days))
     if view == "platform":
         conditions.append(Source.kind == "platform")
     elif view == "feed":
@@ -292,6 +296,8 @@ def list_items(
         conditions.append(Item.first_seen >= now - timedelta(days=7))
     if source:
         conditions.append(Item.source_id == source)
+    if edition:
+        conditions.append(Item.extra["edition"].as_string() == edition)
     if priority:
         conditions.append(Item.priority.is_not(None))
     if tag is not None or sentiment or impact or affects:
