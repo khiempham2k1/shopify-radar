@@ -73,4 +73,4 @@ online store 2.0
 
 [Editions]
 /\bshopify editions?\b/
-/\b(summer|winter) '?\d{2} edition\b/
+/\b(winter|spring|summer|fall) '?\d{2} edition\b/
